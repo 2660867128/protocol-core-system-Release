@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if object %}编辑连接{% else %}添加连接{% endif %} - 协议核心管理系统
+{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-{% if object %}edit{% else %}plus{% endif %} me-2 text-primary"></i>
+            {% if object %}编辑连接{% else %}添加连接{% endif %}
+        </h2>
+        <a href="{% url 'connection_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>返回列表
+        </a>
+    </div>
+
+    <!-- 表单 -->
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cog me-2"></i>连接配置
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="connectionForm">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">
+                                    <i class="fas fa-tag me-1"></i>{{ form.name.label }}
+                                </label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">为连接起一个容易识别的名称</div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.connection_type.id_for_label }}" class="form-label">
+                                    <i class="fas fa-layer-group me-1"></i>{{ form.connection_type.label }}
+                                </label>
+                                {{ form.connection_type }}
+                                {% if form.connection_type.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.connection_type.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">选择连接的协议类型</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.url.id_for_label }}" class="form-label">
+                                <i class="fas fa-link me-1"></i>{{ form.url.label }}
+                            </label>
+                            {{ form.url }}
+                            {% if form.url.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.url.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">完整的API接口地址，如：http://127.0.0.1:8080</div>
+                        </div>
+
+                        <div class="mb-3" id="adminKeyField">
+                            <label for="{{ form.admin_key.id_for_label }}" class="form-label">
+                                <i class="fas fa-key me-1"></i>{{ form.admin_key.label }}
+                            </label>
+                            {{ form.admin_key }}
+                            {% if form.admin_key.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.admin_key.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">WeCharPadPro类型必须填写管理员密钥</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                    <i class="fas fa-toggle-on me-1"></i>{{ form.is_active.label }}
+                                </label>
+                            </div>
+                            <div class="form-text">禁用后该连接将不会被使用</div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'connection_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>取消
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-save me-2"></i>
+                                {% if object %}更新连接{% else %}创建连接{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // 根据连接类型显示/隐藏管理员密钥字段
+    function toggleAdminKeyField() {
+        const connectionType = $('#id_connection_type').val();
+        const adminKeyField = $('#adminKeyField');
+        
+        if (connectionType === 'WeCharPadPro') {
+            adminKeyField.show();
+            $('#id_admin_key').prop('required', true);
+        } else {
+            adminKeyField.hide();
+            $('#id_admin_key').prop('required', false);
+        }
+    }
+    
+    // 初始化
+    toggleAdminKeyField();
+    
+    // 监听连接类型变化
+    $('#id_connection_type').change(toggleAdminKeyField);
+    
+    // 表单提交处理
+    $('#connectionForm').submit(function(e) {
+        const submitBtn = $('#submitBtn');
+        const originalText = submitBtn.html();
+        
+        // 显示加载状态
+        submitBtn.html('<span class="spinner-border spinner-border-sm me-2"></span>处理中...');
+        submitBtn.prop('disabled', true);
+        
+        // 如果有验证错误，恢复按钮状态
+        setTimeout(function() {
+            if ($('.text-danger').length > 0) {
+                submitBtn.html(originalText);
+                submitBtn.prop('disabled', false);
+            }
+        }, 100);
+    });
+    
+    // URL格式验证
+    $('#id_url').blur(function() {
+        const url = $(this).val();
+        if (url && !url.match(/^https?:\/\/.+/)) {
+            showMessage('URL格式不正确，请以http://或https://开头', 'warning');
+        }
+    });
+});
+</script>
+
+<style>
+.form-control:focus, .form-select:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+.card {
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.form-text {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+.btn {
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+</style>
+{% endblock %}

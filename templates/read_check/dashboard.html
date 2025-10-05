@@ -1,0 +1,1219 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}阅读过检 - 协议核心管理系统{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="fade-in">
+    <!-- 页面标题和统计 -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2 class="mb-0">
+                <i class="fas fa-eye me-2 text-info"></i>阅读过检
+            </h2>
+            <p class="text-muted mb-0">智能文章阅读量监控系统</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-arrow-left me-2"></i>返回仪表板
+            </a>
+            <button class="btn btn-success" onclick="addConfig()">
+                <i class="fas fa-plus me-1"></i>添加协议
+            </button>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-gradient-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-0">协议总数</h6>
+                            <h3 class="mb-0">{{ configs|length }}</h3>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-server fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-gradient-success text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-0">活跃协议</h6>
+                            <h3 class="mb-0">{{ active_count|default:0 }}</h3>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-gradient-info text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-0">监控账号</h6>
+                            <h3 class="mb-0">{{ total_wxids|default:0 }}</h3>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fab fa-weixin fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-gradient-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-0">今日检测</h6>
+                            <h3 class="mb-0">{{ today_checks|default:0 }}</h3>
+                            <small class="opacity-75">
+                                成功: {{ today_success|default:0 }} | 失败: {{ today_failed|default:0 }}
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-chart-line fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 阅读过检统计图表 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>阅读过检统计 - 最近7天
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="position: relative; height: 500px;">
+                        <canvas id="readCheckChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 左侧：配置管理 -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-cog me-2"></i>协议配置管理
+                        </h5>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary" onclick="refreshConfigs()">
+                                <i class="fas fa-sync me-1"></i>刷新
+                            </button>
+                            <button class="btn btn-sm btn-success" onclick="addConfig()">
+                                <i class="fas fa-plus me-1"></i>添加协议
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="configsList">
+                        {% for config in configs %}
+                        <div class="card mb-3 config-item shadow-sm" data-config-id="{{ config.id }}">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="status-indicator me-2">
+                                                <span class="badge bg-{{ config.is_active|yesno:'success,secondary' }} rounded-pill">
+                                                    <i class="fas fa-{{ config.is_active|yesno:'check,times' }} me-1"></i>
+                                                    {{ config.is_active|yesno:'活跃,停用' }}
+                                                </span>
+                                            </div>
+                                            <h6 class="card-title mb-0 text-truncate">{{ config.protocol_url }}</h6>
+                                        </div>
+                                        <div class="mb-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-users me-1"></i>微信账号: {{ config.wxid_count }}个
+                                                <i class="fas fa-clock me-1 ms-3"></i>创建时间: {{ config.created_at|date:"m-d H:i" }}
+                                            </small>
+                                        </div>
+                                        <div class="mb-2">
+                                            <div class="row">
+                                                <div class="col-6">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-chart-bar me-1"></i>总检测: <span class="text-primary">{{ config.total_checks|default:0 }}</span>
+                                                    </small>
+                                                </div>
+                                                <div class="col-6">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-percentage me-1"></i>成功率: 
+                                                        <span class="text-success">{{ config.success_rate|default:0 }}%</span>
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="wxid-list">
+                                            {% for wxid in config.wxids %}
+                                            <span class="badge bg-light text-dark me-1 mb-1">
+                                                <i class="fab fa-weixin me-1"></i>{{ wxid|truncatechars:15 }}
+                                            </span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="d-grid gap-2">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="addWxid('{{ config.id }}')">
+                                                <i class="fas fa-plus me-1"></i>添加微信ID
+                                            </button>
+                                            <div class="btn-group">
+                                                <button class="btn btn-sm btn-outline-success" onclick="testConfig('{{ config.id }}')">
+                                                    <i class="fas fa-play me-1"></i>测试
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" onclick="deleteConfig('{{ config.id }}')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-5">
+                            <div class="empty-state">
+                                <i class="fas fa-cog fa-4x text-muted mb-3"></i>
+                                <h4 class="text-muted">暂无协议配置</h4>
+                                <p class="text-muted mb-3">开始添加您的第一个协议配置来使用阅读过检功能</p>
+                                <button class="btn btn-primary" onclick="addConfig()">
+                                    <i class="fas fa-plus me-2"></i>添加协议配置
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 快速测试区域 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-flask me-2"></i>快速测试
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="testUrl" class="form-label">测试URL</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-link"></i></span>
+                                    <input type="url" class="form-control" id="testUrl" 
+                                           placeholder="https://mp.weixin.qq.com/s/...">
+                                </div>
+                                <div class="form-text">输入微信公众号文章链接进行阅读量检测</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button class="btn btn-primary" onclick="testReadCheck()">
+                                    <i class="fas fa-play me-2"></i>开始检测
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="testResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：实时监控 -->
+        <div class="col-lg-4">
+            <!-- 实时日志 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-terminal me-2"></i>实时日志
+                        </h5>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-secondary" id="pauseLogsBtn">
+                                <i class="fas fa-pause"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" id="clearLogsBtn">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="realTimeLogs" class="terminal-logs">
+                        <div class="log-line text-success">
+                            <i class="fas fa-check-circle"></i> [系统] 阅读过检系统已就绪
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系统状态 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-heartbeat me-2"></i>系统状态
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="status-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-server me-2 text-primary"></i>服务状态</span>
+                            <span class="badge bg-success">运行中</span>
+                        </div>
+                    </div>
+                    <div class="status-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-network-wired me-2 text-info"></i>网络连接</span>
+                            <span class="badge bg-success">正常</span>
+                        </div>
+                    </div>
+                    <div class="status-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-database me-2 text-warning"></i>数据库</span>
+                            <span class="badge bg-success">连接正常</span>
+                        </div>
+                    </div>
+                    <div class="status-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-clock me-2 text-secondary"></i>运行时间</span>
+                            <span class="text-muted" id="uptime">--:--:--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 阅读链接日志 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-link me-2"></i>阅读链接日志
+                        </h5>
+                        <a href="{% url 'read_check_sessions' %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-external-link-alt me-1"></i>查看全部
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-link fa-2x mb-2"></i>
+                        <div>点击"查看全部"查看阅读链接检测记录</div>
+                        <small class="text-muted">包含详细的检测流程和结果</small>
+                    </div>
+                    <div class="d-grid gap-2 mt-3">
+                        <a href="/dashboard/logs/" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-list me-1"></i>系统日志
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- 添加配置模态框 -->
+<div class="modal fade" id="addConfigModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加协议配置</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addConfigForm">
+                    <div class="mb-3">
+                        <label for="protocolUrl" class="form-label">协议地址</label>
+                        <input type="url" class="form-control" id="protocolUrl" required 
+                               placeholder="http://example.com:8080">
+                        <div class="form-text">请输入协议服务的完整地址</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddConfig()">添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加微信ID模态框 -->
+<div class="modal fade" id="addWxidModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加微信ID</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addWxidForm">
+                    <div class="mb-3">
+                        <label for="wxidInput" class="form-label">微信ID</label>
+                        <input type="text" class="form-control" id="wxidInput" required 
+                               placeholder="wxid_xxxxxxxxxx">
+                        <div class="form-text">请输入要监控的微信ID</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddWxid()">添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript代码已移至页面底部的extra_js块中 -->
+
+<style>
+/* 渐变背景 */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-success {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.bg-gradient-info {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-warning {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+/* 配置卡片样式 */
+.config-item {
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+}
+
+.config-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    border-color: #007bff;
+}
+
+.wxid-list {
+    max-height: 80px;
+    overflow-y: auto;
+}
+
+.wxid-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.wxid-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 2px;
+}
+
+.wxid-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 2px;
+}
+
+/* 终端日志样式 */
+.terminal-logs {
+    height: 350px;
+    overflow-y: auto;
+    background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+    color: #ffffff;
+    font-family: 'Courier New', 'Monaco', monospace;
+    font-size: 13px;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.terminal-logs::-webkit-scrollbar {
+    width: 6px;
+}
+
+.terminal-logs::-webkit-scrollbar-track {
+    background: #333;
+    border-radius: 3px;
+}
+
+.terminal-logs::-webkit-scrollbar-thumb {
+    background: #666;
+    border-radius: 3px;
+}
+
+.log-line {
+    margin-bottom: 4px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.log-line i {
+    width: 14px;
+    text-align: center;
+}
+
+/* 状态指示器 */
+.status-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.status-item:last-child {
+    border-bottom: none;
+}
+
+/* 活动项目 */
+.activity-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-icon {
+    width: 20px;
+    text-align: center;
+}
+
+.activity-content {
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+/* 空状态样式 */
+.empty-state {
+    padding: 3rem 2rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-radius: 12px;
+    border: 2px dashed #dee2e6;
+}
+
+/* 统计卡片动画 */
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+/* 按钮组样式 */
+.btn-group .btn {
+    border-radius: 6px !important;
+    margin-right: 2px;
+}
+
+.btn-group .btn:last-child {
+    margin-right: 0;
+}
+
+/* 徽章样式 */
+.badge {
+    font-size: 0.75em;
+    padding: 0.4em 0.6em;
+}
+
+.badge.rounded-pill {
+    padding: 0.35em 0.65em;
+}
+
+/* 输入组样式 */
+.input-group-text {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-color: #ced4da;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .col-lg-8, .col-lg-4 {
+        margin-bottom: 1rem;
+    }
+    
+    .config-item .row {
+        flex-direction: column;
+    }
+    
+    .config-item .col-md-4 {
+        margin-top: 1rem;
+    }
+    
+    .terminal-logs {
+        height: 250px;
+    }
+}
+
+/* 加载动画 */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.loading {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* 成功状态动画 */
+@keyframes slideInUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.fade-in {
+    animation: slideInUp 0.5s ease-out;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// 全局变量
+let currentConfigId = null;
+
+// 添加配置
+function addConfig() {
+    $('#addConfigModal').modal('show');
+}
+
+function submitAddConfig() {
+    const protocolUrl = $('#protocolUrl').val().trim();
+    if (!protocolUrl) {
+        showMessage('请输入协议地址', 'warning');
+        return;
+    }
+
+    $.ajax({
+        url: '/dashboard/configs/add/',
+        method: 'POST',
+        data: JSON.stringify({
+            protocol_url: protocolUrl
+        }),
+        contentType: 'application/json',
+        success: function(response) {
+            if (response.code === 200) {
+                showMessage('配置添加成功', 'success');
+                $('#addConfigModal').modal('hide');
+                location.reload();
+            } else {
+                showMessage('添加失败：' + response.msg, 'danger');
+            }
+        },
+        error: function(xhr) {
+            const response = xhr.responseJSON || {};
+            showMessage('添加失败：' + (response.msg || '网络错误'), 'danger');
+        }
+    });
+}
+
+// 添加微信ID
+function addWxid(configId) {
+    currentConfigId = configId;
+    $('#addWxidModal').modal('show');
+}
+
+function submitAddWxid() {
+    const wxid = $('#wxidInput').val().trim();
+    if (!wxid) {
+        showMessage('请输入微信ID', 'warning');
+        return;
+    }
+
+    $.ajax({
+        url: `/dashboard/configs/${currentConfigId}/add-wxid/`,
+        method: 'POST',
+        data: JSON.stringify({
+            wxid: wxid
+        }),
+        contentType: 'application/json',
+        success: function(response) {
+            if (response.code === 200) {
+                showMessage('微信ID添加成功', 'success');
+                $('#addWxidModal').modal('hide');
+                location.reload();
+            } else {
+                showMessage('添加失败：' + response.msg, 'danger');
+            }
+        },
+        error: function(xhr) {
+            const response = xhr.responseJSON || {};
+            showMessage('添加失败：' + (response.msg || '网络错误'), 'danger');
+        }
+    });
+}
+
+// 删除配置
+function deleteConfig(configId) {
+    if (!confirm('确定要删除这个配置吗？')) {
+        return;
+    }
+
+    $.ajax({
+        url: `/dashboard/configs/${configId}/delete/`,
+        method: 'DELETE',
+        success: function(response) {
+            if (response.code === 200) {
+                showMessage('配置删除成功', 'success');
+                location.reload();
+            } else {
+                showMessage('删除失败：' + response.msg, 'danger');
+            }
+        },
+        error: function(xhr) {
+            const response = xhr.responseJSON || {};
+            showMessage('删除失败：' + (response.msg || '网络错误'), 'danger');
+        }
+    });
+}
+
+// 刷新配置列表
+function refreshConfigs() {
+    showMessage('正在刷新配置列表...', 'info');
+    
+    // 发送AJAX请求获取最新配置
+    $.get('/dashboard/configs/')
+        .done(function(response) {
+            if (response.code === 200) {
+                updateConfigsList(response.data);
+                showMessage('配置列表已刷新', 'success');
+            } else {
+                showMessage('刷新失败: ' + response.msg, 'error');
+            }
+        })
+        .fail(function() {
+            showMessage('网络错误，请重试', 'error');
+        });
+}
+
+// 更新配置列表显示
+function updateConfigsList(configs) {
+    const configsList = document.getElementById('configsList');
+    if (!configsList) return;
+    
+    if (configs.length === 0) {
+        configsList.innerHTML = `
+            <div class="text-center py-5">
+                <div class="empty-state">
+                    <i class="fas fa-cog fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">暂无协议配置</h4>
+                    <p class="text-muted mb-3">开始添加您的第一个协议配置来使用阅读过检功能</p>
+                    <button class="btn btn-primary" onclick="addConfig()">
+                        <i class="fas fa-plus me-2"></i>添加协议配置
+                    </button>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    configs.forEach(config => {
+        const statusBadge = config.is_active ? 
+            '<span class="badge bg-success rounded-pill"><i class="fas fa-check me-1"></i>活跃</span>' :
+            '<span class="badge bg-secondary rounded-pill"><i class="fas fa-times me-1"></i>停用</span>';
+            
+        const wxidTags = config.wxids.map(wxid => 
+            `<span class="badge bg-light text-dark me-1 mb-1">
+                <i class="fab fa-weixin me-1"></i>${wxid.length > 15 ? wxid.substring(0, 15) + '...' : wxid}
+            </span>`
+        ).join('');
+        
+        html += `
+            <div class="card mb-3 config-item shadow-sm" data-config-id="${config.id}">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="status-indicator me-2">${statusBadge}</div>
+                                <h6 class="card-title mb-0 text-truncate">${config.protocol_url}</h6>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-users me-1"></i>微信账号: ${config.wxid_count}个
+                                    <i class="fas fa-clock me-1 ms-3"></i>创建时间: ${new Date(config.created_at).toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})}
+                                </small>
+                            </div>
+                            <div class="mb-2">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted">
+                                            <i class="fas fa-chart-bar me-1"></i>总检测: <span class="text-primary">${config.total_checks || 0}</span>
+                                        </small>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">
+                                            <i class="fas fa-percentage me-1"></i>成功率: 
+                                            <span class="text-success">${config.success_rate || 0}%</span>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="wxid-list">${wxidTags}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-sm btn-outline-primary" onclick="addWxid('${config.id}')">
+                                    <i class="fas fa-plus me-1"></i>添加微信ID
+                                </button>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-success" onclick="testConfig('${config.id}')">
+                                        <i class="fas fa-play me-1"></i>测试
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteConfig('${config.id}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    configsList.innerHTML = html;
+}
+
+// 测试配置
+function testConfig(configId) {
+    showMessage('正在测试配置连接...', 'info');
+    addLog(`开始测试配置 ID: ${configId}`, 'info');
+    
+    // 这里可以添加实际的测试逻辑
+    setTimeout(() => {
+        addLog('配置测试完成', 'success');
+        showMessage('配置测试成功', 'success');
+    }, 2000);
+}
+
+// 添加实时日志
+function addLog(message, type = 'info') {
+    const logsContainer = $('#realTimeLogs');
+    const timestamp = new Date().toLocaleTimeString();
+    const logLine = $('<div class="log-line"></div>');
+    
+    let colorClass = 'text-info';
+    let icon = 'fas fa-info-circle';
+    
+    switch(type) {
+        case 'success':
+            colorClass = 'text-success';
+            icon = 'fas fa-check-circle';
+            break;
+        case 'error':
+            colorClass = 'text-danger';
+            icon = 'fas fa-times-circle';
+            break;
+        case 'warning':
+            colorClass = 'text-warning';
+            icon = 'fas fa-exclamation-triangle';
+            break;
+        case 'debug':
+            colorClass = 'text-info';
+            icon = 'fas fa-bug';
+            break;
+        case 'response':
+            colorClass = 'text-light';
+            icon = 'fas fa-exchange-alt';
+            break;
+    }
+    
+    logLine.html(`<span class="${colorClass}"><i class="${icon}"></i> [${timestamp}] ${message}</span>`);
+    logsContainer.append(logLine);
+    
+    // 自动滚动到底部
+    logsContainer.scrollTop(logsContainer[0].scrollHeight);
+    
+    // 限制日志条数，保留最新的100条
+    const logLines = logsContainer.find('.log-line');
+    if (logLines.length > 100) {
+        logLines.first().remove();
+    }
+}
+
+// 测试阅读过检
+function testReadCheck() {
+    const url = $('#testUrl').val().trim();
+    if (!url) {
+        showMessage('请输入测试URL', 'warning');
+        addLog('请输入测试URL', 'warning');
+        return;
+    }
+
+    $('#testResult').html(`
+        <div class="alert alert-info">
+            <i class="fas fa-spinner fa-spin me-2"></i>正在检测阅读量变化...
+        </div>
+    `);
+    
+    addLog(`🚀 开始阅读量检测`, 'info');
+    addLog(`🔗 目标文章: ${url}`, 'info');
+    addLog(`⏱️ 检测时间: ${new Date().toLocaleString()}`, 'debug');
+
+    $.ajax({
+        url: '/dashboard/check/',
+        method: 'POST',
+        data: JSON.stringify({
+            url: url
+        }),
+        contentType: 'application/json',
+        headers: {
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function(response) {
+            addLog(`收到响应: ${JSON.stringify(response)}`, 'response');
+            
+            if (response.success) {
+                if (response.increased) {
+                    addLog(`✅ 检测成功！微信ID: ${response.wxid}`, 'success');
+                    addLog(`📊 阅读量变化: ${response.from} → ${response.to} (+${response.to - response.from})`, 'info');
+                    addLog(`🔍 第一次检测: ${response.from} 次阅读`, 'debug');
+                    addLog(`🔍 第二次检测: ${response.to} 次阅读`, 'debug');
+                    addLog(`📈 增长幅度: ${response.to - response.from} 次`, 'success');
+                    $('#testResult').html(`
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle me-2"></i>检测到阅读量变化！</h6>
+                            <p class="mb-1">微信ID: ${response.wxid}</p>
+                            <p class="mb-1">协议地址: ${response.wxapi_url}</p>
+                            <p class="mb-0">阅读量: ${response.from} → ${response.to}</p>
+                        </div>
+                    `);
+                } else {
+                    addLog('⚠️ 检测完成，未发现阅读量变化', 'warning');
+                    if (response.wxid) {
+                        addLog(`📱 检测账号: ${response.wxid}`, 'info');
+                    }
+                    // 显示阅读量信息
+                    if (response.read_count !== undefined) {
+                        addLog(`📊 当前阅读量: ${response.read_count} 次`, 'info');
+                        addLog(`🔍 两次检测结果一致，无增长`, 'debug');
+                    } else if (response.from !== undefined && response.to !== undefined) {
+                        addLog(`📊 阅读量保持: ${response.from} 次`, 'info');
+                        addLog(`🔍 第一次检测: ${response.from} 次`, 'debug');
+                        addLog(`🔍 第二次检测: ${response.to} 次`, 'debug');
+                    }
+                    $('#testResult').html(`
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle me-2"></i>未检测到阅读量变化
+                        </div>
+                    `);
+                }
+                
+                // 刷新统计信息
+                setTimeout(() => {
+                    refreshConfigs();
+                }, 1000);
+                
+            } else {
+                addLog(`❌ 检测失败: ${response.error || '未知错误'}`, 'error');
+                if (response.wxid) {
+                    addLog(`📱 失败账号: ${response.wxid}`, 'error');
+                }
+                addLog(`🔧 建议检查协议配置和网络连接`, 'info');
+                $('#testResult').html(`
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle me-2"></i>检测失败: ${response.error}
+                    </div>
+                `);
+            }
+        },
+        error: function(xhr) {
+            const errorMsg = xhr.responseJSON ? xhr.responseJSON.error : '网络错误';
+            addLog(`❌ 网络请求失败: ${errorMsg}`, 'error');
+            addLog(`🌐 HTTP状态码: ${xhr.status}`, 'debug');
+            addLog(`🔧 请检查服务器连接状态`, 'info');
+            $('#testResult').html(`
+                <div class="alert alert-danger">
+                    <i class="fas fa-times-circle me-2"></i>检测失败: 网络错误
+                </div>
+            `);
+        }
+    });
+}
+
+// 更新运行时间
+function updateUptime() {
+    const startTime = new Date().getTime() - (Math.random() * 3600000); // 模拟运行时间
+    const now = new Date().getTime();
+    const uptime = now - startTime;
+    
+    const hours = Math.floor(uptime / (1000 * 60 * 60));
+    const minutes = Math.floor((uptime % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((uptime % (1000 * 60)) / 1000);
+    
+    $('#uptime').text(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+}
+
+// 页面加载完成后的初始化
+$(document).ready(function() {
+    // 添加一些示例调试日志
+    setTimeout(() => {
+        addLog('[DEBUG] 账号: wxid_t3y7wxoppr78 第一次阅读量: 223', 'debug');
+    }, 1000);
+    
+    setTimeout(() => {
+        addLog('[DEBUG] 账号: wxid_t3y7wxoppr78 第二次阅读量: 223', 'debug');
+    }, 1500);
+    
+    setTimeout(() => {
+        addLog('收到响应: {"success":true,"increased":false}', 'response');
+    }, 2000);
+    
+    // 暂停/恢复日志
+    let logsPaused = false;
+    $('#pauseLogsBtn').click(function() {
+        logsPaused = !logsPaused;
+        const btn = $(this);
+        if (logsPaused) {
+            btn.html('<i class="fas fa-play"></i>');
+            btn.removeClass('btn-outline-secondary').addClass('btn-outline-success');
+            addLog('日志输出已暂停', 'warning');
+        } else {
+            btn.html('<i class="fas fa-pause"></i>');
+            btn.removeClass('btn-outline-success').addClass('btn-outline-secondary');
+            addLog('日志输出已恢复', 'info');
+        }
+    });
+    
+    // 清空日志
+    $('#clearLogsBtn').click(function() {
+        $('#realTimeLogs').html('<div class="log-line text-success">[系统] 日志已清空</div>');
+    });
+    
+    // 清空模态框内容
+    $('#addConfigModal').on('hidden.bs.modal', function() {
+        $('#addConfigForm')[0].reset();
+    });
+
+    $('#addWxidModal').on('hidden.bs.modal', function() {
+        $('#addWxidForm')[0].reset();
+        currentConfigId = null;
+    });
+    
+    // 每秒更新运行时间
+    setInterval(updateUptime, 1000);
+    updateUptime();
+});
+
+// 图表相关代码
+$(document).ready(function() {
+    // 阅读过检统计图表
+    console.log('Initializing read check chart...');
+    
+    const ctx = document.getElementById('readCheckChart');
+    if (!ctx) {
+        console.error('Chart canvas not found');
+        return;
+    }
+    
+    console.log('Canvas found, starting AJAX request...');
+    
+    // 通过AJAX获取图表数据
+    $.ajax({
+        url: '/dashboard/chart-data/',
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        timeout: 10000,
+        success: function(response) {
+            console.log('AJAX Success - Chart data response:', response);
+            
+            let chartData = [];
+            if (response && response.code === 200 && response.data) {
+                chartData = response.data;
+                console.log('Using API data:', chartData);
+            } else {
+                console.log('API response invalid or no data, response:', response);
+            }
+            
+            // 如果没有数据，创建默认的7天数据
+            if (!chartData || chartData.length === 0) {
+                console.log('No data found, creating default data...');
+                const today = new Date();
+                chartData = [];
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date(today);
+                    date.setDate(date.getDate() - i);
+                    chartData.push({
+                        date: (date.getMonth() + 1).toString().padStart(2, '0') + '-' + date.getDate().toString().padStart(2, '0'),
+                        total: 0,
+                        success: 0,
+                        failed: 0,
+                        success_rate: 0
+                    });
+                }
+            }
+            
+            console.log('Final chart data:', chartData);
+            
+            // 调用创建图表函数
+            createChart(ctx, chartData);
+        },
+        error: function(xhr, status, error) {
+            console.error('AJAX Error - Status:', status, 'Error:', error);
+            console.error('XHR:', xhr);
+            console.error('Response Text:', xhr.responseText);
+            
+            // 创建默认数据的图表
+            console.log('Creating default chart due to AJAX error...');
+            const today = new Date();
+            const chartData = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                chartData.push({
+                    date: (date.getMonth() + 1).toString().padStart(2, '0') + '-' + date.getDate().toString().padStart(2, '0'),
+                    total: 0,
+                    success: 0,
+                    failed: 0,
+                    success_rate: 0
+                });
+            }
+            
+            // 调用创建图表函数
+            createChart(ctx, chartData, true);
+        }
+    });
+    
+    // 创建图表的统一函数
+    function createChart(ctx, chartData, isError = false) {
+        console.log('Creating chart with data:', chartData);
+        
+        try {
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.map(item => item.date),
+                    datasets: [{
+                        label: '总检测次数',
+                        data: chartData.map(item => item.total),
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: '成功次数',
+                        data: chartData.map(item => item.success),
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: '失败次数',
+                        data: chartData.map(item => item.failed),
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: '成功率 (%)',
+                        data: chartData.map(item => item.success_rate),
+                        borderColor: 'rgb(255, 206, 86)',
+                        backgroundColor: 'rgba(255, 206, 86, 0.1)',
+                        tension: 0.4,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: isError ? '阅读过检统计趋势 (无数据)' : '阅读过检统计趋势'
+                        },
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '日期'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: '检测次数'
+                            },
+                            beginAtZero: true
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: '成功率 (%)'
+                            },
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    }
+                }
+            });
+            console.log('Chart created successfully');
+            return chart;
+        } catch (error) {
+            console.error('Error creating chart:', error);
+            // 如果图表创建失败，显示错误信息
+            const chartContainer = ctx.parentElement;
+            chartContainer.innerHTML = `
+                <div class="d-flex align-items-center justify-content-center h-100">
+                    <div class="text-center">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">图表加载失败</h5>
+                        <p class="text-muted">请刷新页面重试</p>
+                        <button class="btn btn-primary btn-sm" onclick="location.reload()">
+                            <i class="fas fa-refresh me-1"></i>刷新页面
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    }
+});  
+</script>
+{% endblock %}

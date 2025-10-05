@@ -1,0 +1,484 @@
+{% extends 'base.html' %}
+
+{% block title %}系统日志 - 协议核心管理系统{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-file-alt me-2 text-primary"></i>系统日志
+        </h2>
+        <div class="d-flex align-items-center">
+            <span class="badge bg-info me-3">总计 {{ total_logs }} 条日志</span>
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>返回仪表板
+            </a>
+        </div>
+    </div>
+
+    <!-- 筛选器 -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-gradient-primary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-filter me-2"></i>筛选条件
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <!-- 搜索框 -->
+                <div class="col-md-3">
+                    <label class="form-label">搜索关键词</label>
+                    <input type="text" class="form-control" name="search" value="{{ search }}" 
+                           placeholder="搜索日志消息或连接名称">
+                </div>
+                
+                <!-- 日志类型 -->
+                <div class="col-md-2">
+                    <label class="form-label">日志类型</label>
+                    <select class="form-select" name="type">
+                        <option value="">全部类型</option>
+                        {% for type_code, type_name in log_types %}
+                            <option value="{{ type_code }}" {% if selected_type == type_code %}selected{% endif %}>
+                                {{ type_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- 连接筛选 -->
+                <div class="col-md-3">
+                    <label class="form-label">连接</label>
+                    <select class="form-select" name="connection">
+                        <option value="">全部连接</option>
+                        {% for connection in connections %}
+                            <option value="{{ connection.pk }}" {% if selected_connection == connection.pk|stringformat:"s" %}selected{% endif %}>
+                                {{ connection.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- 状态筛选 -->
+                <div class="col-md-2">
+                    <label class="form-label">状态</label>
+                    <select class="form-select" name="status">
+                        <option value="">全部状态</option>
+                        <option value="success" {% if selected_status == 'success' %}selected{% endif %}>成功</option>
+                        <option value="failed" {% if selected_status == 'failed' %}selected{% endif %}>失败</option>
+                    </select>
+                </div>
+                
+                <!-- 日志源筛选 -->
+                <div class="col-md-2">
+                    <label class="form-label">日志源</label>
+                    <select class="form-select" name="source">
+                        {% for source_code, source_name in log_sources %}
+                            <option value="{{ source_code }}" {% if selected_source == source_code %}selected{% endif %}>
+                                {{ source_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i>筛选
+                    </button>
+                    <a href="{% url 'logs' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>清空
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 日志列表 -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-info text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>日志记录
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if page_obj %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 logs-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="border-0 fw-bold text-dark">时间</th>
+                                <th class="border-0 fw-bold text-dark">来源</th>
+                                <th class="border-0 fw-bold text-dark">类型</th>
+                                <th class="border-0 fw-bold text-dark">状态</th>
+                                <th class="border-0 fw-bold text-dark">消息</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in page_obj %}
+                            <tr class="log-row">
+                                <td class="align-middle">
+                                    <div class="log-time">
+                                        <div class="fw-bold">{{ log.created_at|date:"m-d H:i" }}</div>
+                                        <small class="text-muted">{{ log.created_at|date:"Y年" }}</small>
+                                    </div>
+                                </td>
+                                <td class="align-middle">
+                                    <div class="d-flex align-items-center">
+                                        <div class="connection-icon me-2 {% if log.type == 'protocol' %}protocol-icon{% endif %}">
+                                            {% if log.type == 'protocol' %}
+                                                <i class="fas fa-cogs"></i>
+                                            {% else %}
+                                                <i class="fas fa-server"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold">{{ log.connection_name }}</div>
+                                            <small class="text-muted">{{ log.source }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="align-middle">
+                                    <span class="log-type-badge type-{{ log.log_type }}">
+                                        {% if log.log_type == 'login' %}
+                                            <i class="fas fa-sign-in-alt me-1"></i>登录
+                                        {% elif log.log_type == 'query' %}
+                                            <i class="fas fa-search me-1"></i>查询
+                                        {% elif log.log_type == 'generate' %}
+                                            <i class="fas fa-key me-1"></i>生成
+                                        {% elif log.log_type == 'error' %}
+                                            <i class="fas fa-exclamation-triangle me-1"></i>错误
+                                        {% elif log.log_type == 'refresh' %}
+                                            <i class="fas fa-sync me-1"></i>刷新
+                                        {% else %}
+                                            <i class="fas fa-info-circle me-1"></i>{{ log.log_type_display }}
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td class="align-middle">
+                                    <span class="log-status-badge {% if log.success %}status-success{% else %}status-failed{% endif %}">
+                                        {% if log.success %}
+                                            <i class="fas fa-check-circle me-1"></i>成功
+                                        {% else %}
+                                            <i class="fas fa-times-circle me-1"></i>失败
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td class="align-middle">
+                                    <div class="log-message">
+                                        {{ log.message|truncatechars:100 }}
+                                        {% if log.message|length > 100 %}
+                                            <button class="btn btn-link btn-sm p-0 ms-1" onclick="showFullMessage('{{ log.id }}', `{{ log.message|escapejs }}`)">
+                                                <i class="fas fa-expand-alt"></i>
+                                            </button>
+                                        {% endif %}
+                                        {% if log.type == 'protocol' %}
+                                            <div class="mt-1">
+                                                <small class="text-info">
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    连接数:{{ log.connection_count }} | 成功:{{ log.success_count }} | 失败:{{ log.failed_count }}
+                                                </small>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 分页 -->
+                {% if page_obj.has_other_pages %}
+                    <div class="d-flex justify-content-center mt-4 mb-3">
+                        <nav aria-label="日志分页">
+                            <ul class="pagination pagination-lg shadow-sm">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if selected_connection %}&connection={{ selected_connection }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source %}&source={{ selected_source }}{% endif %}">
+                                            <i class="fas fa-angle-double-left me-1"></i>首页
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if selected_connection %}&connection={{ selected_connection }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source %}&source={{ selected_source }}{% endif %}">
+                                            <i class="fas fa-angle-left me-1"></i>上一页
+                                        </a>
+                                    </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link bg-primary border-primary">
+                                        第 {{ page_obj.number }} 页，共 {{ page_obj.paginator.num_pages }} 页
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if selected_connection %}&connection={{ selected_connection }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source %}&source={{ selected_source }}{% endif %}">
+                                            下一页<i class="fas fa-angle-right ms-1"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if selected_connection %}&connection={{ selected_connection }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source %}&source={{ selected_source }}{% endif %}">
+                                            末页<i class="fas fa-angle-double-right ms-1"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                {% endif %}
+            {% else %}
+                <!-- 空状态 -->
+                <div class="logs-empty-state">
+                    <div class="empty-content">
+                        <div class="empty-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <h4 class="text-muted mb-3">暂无日志记录</h4>
+                        <p class="text-muted mb-4">系统还没有生成任何日志记录，或者当前筛选条件没有匹配的结果</p>
+                        <a href="{% url 'logs' %}" class="btn btn-primary">
+                            <i class="fas fa-refresh me-2"></i>重新加载
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 消息详情模态框 -->
+<div class="modal fade" id="messageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>日志详情
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="log-detail-content">
+                    <pre id="fullMessage" class="bg-light p-3 rounded"></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 显示完整消息
+function showFullMessage(logId, message) {
+    document.getElementById('fullMessage').textContent = message;
+    const modal = new bootstrap.Modal(document.getElementById('messageModal'));
+    modal.show();
+}
+
+// 初始化工具提示
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+
+<style>
+/* 日志表格样式 */
+.logs-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.logs-table thead th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    font-weight: 600;
+    padding: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.log-row {
+    transition: all 0.2s ease;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.log-row:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.logs-table td {
+    padding: 1.25rem 1rem;
+    vertical-align: middle;
+    border: none;
+}
+
+/* 连接图标样式 */
+.connection-icon {
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.protocol-icon {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+/* 时间显示样式 */
+.log-time {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* 日志类型徽章样式 */
+.log-type-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 15px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+.type-login {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.type-query {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+.type-generate {
+    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+    color: #212529;
+    box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+}
+
+.type-error {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+.type-refresh {
+    background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(111, 66, 193, 0.3);
+}
+
+/* 状态徽章样式 */
+.log-status-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 15px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+.status-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.status-failed {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+/* 日志消息样式 */
+.log-message {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* 渐变背景 */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-info {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+}
+
+/* 空状态样式 */
+.logs-empty-state {
+    padding: 4rem 2rem;
+    text-align: center;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+.logs-empty-state .empty-content {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.logs-empty-state .empty-icon {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 2rem;
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 25px rgba(23, 162, 184, 0.3);
+}
+
+.logs-empty-state .empty-icon i {
+    font-size: 3rem;
+    color: white;
+}
+
+/* 分页样式 */
+.pagination-lg .page-link {
+    border-radius: 10px;
+    margin: 0 3px;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+}
+
+.pagination-lg .page-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .logs-table {
+        font-size: 0.875rem;
+    }
+    
+    .logs-table td {
+        padding: 0.75rem 0.5rem;
+    }
+    
+    .connection-icon {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+}
+</style>
+{% endblock %}

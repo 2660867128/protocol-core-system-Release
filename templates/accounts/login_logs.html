@@ -1,0 +1,268 @@
+{% extends 'base.html' %}
+
+{% block title %}登录日志 - 协议核心管理系统{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-history me-2 text-info"></i>登录日志
+        </h2>
+        <a href="{% url 'profile' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>返回用户配置
+        </a>
+    </div>
+
+    <!-- 统计信息 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-sign-in-alt fa-2x text-primary mb-2"></i>
+                    <h4 class="mb-1">{{ page_obj.paginator.count }}</h4>
+                    <small class="text-muted">总登录次数</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <h4 class="mb-1">{{ logs|length|add:0 }}</h4>
+                    <small class="text-muted">成功登录</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-clock fa-2x text-warning mb-2"></i>
+                    <h4 class="mb-1">
+                        {% if user.last_login %}
+                            {{ user.last_login|timesince }}前
+                        {% else %}
+                            从未
+                        {% endif %}
+                    </h4>
+                    <small class="text-muted">最后登录</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-calendar-day fa-2x text-info mb-2"></i>
+                    <h4 class="mb-1">{{ user.date_joined|date:"Y-m-d" }}</h4>
+                    <small class="text-muted">注册日期</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 登录日志列表 -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>登录记录
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if logs %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th><i class="fas fa-calendar me-1"></i>登录时间</th>
+                                <th><i class="fas fa-globe me-1"></i>IP地址</th>
+                                <th><i class="fas fa-desktop me-1"></i>用户代理</th>
+                                <th><i class="fas fa-check-circle me-1"></i>状态</th>
+                                <th><i class="fas fa-clock me-1"></i>相对时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr>
+                                <td>
+                                    <span class="fw-bold">{{ log.login_time|date:"Y-m-d H:i:s" }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">
+                                        <i class="fas fa-map-marker-alt me-1"></i>{{ log.ip_address }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <small class="text-muted" title="{{ log.user_agent }}">
+                                        {% if "Chrome" in log.user_agent %}
+                                            <i class="fab fa-chrome text-warning me-1"></i>Chrome
+                                        {% elif "Firefox" in log.user_agent %}
+                                            <i class="fab fa-firefox text-danger me-1"></i>Firefox
+                                        {% elif "Safari" in log.user_agent %}
+                                            <i class="fab fa-safari text-info me-1"></i>Safari
+                                        {% elif "Edge" in log.user_agent %}
+                                            <i class="fab fa-edge text-primary me-1"></i>Edge
+                                        {% else %}
+                                            <i class="fas fa-globe me-1"></i>其他
+                                        {% endif %}
+                                        
+                                        {% if "Windows" in log.user_agent %}
+                                            <i class="fab fa-windows text-primary ms-2"></i>
+                                        {% elif "Mac" in log.user_agent %}
+                                            <i class="fab fa-apple text-secondary ms-2"></i>
+                                        {% elif "Linux" in log.user_agent %}
+                                            <i class="fab fa-linux text-dark ms-2"></i>
+                                        {% elif "Android" in log.user_agent %}
+                                            <i class="fab fa-android text-success ms-2"></i>
+                                        {% elif "iPhone" in log.user_agent %}
+                                            <i class="fab fa-apple text-secondary ms-2"></i>
+                                        {% endif %}
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if log.success %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>成功
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-times me-1"></i>失败
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ log.login_time|timesince }}前</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分页 -->
+                {% if page_obj.has_other_pages %}
+                <div class="card-footer">
+                    <nav aria-label="登录日志分页">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1">
+                                        <i class="fas fa-angle-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                        <i class="fas fa-angle-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                        <i class="fas fa-angle-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                                        <i class="fas fa-angle-double-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    
+                    <div class="text-center mt-2">
+                        <small class="text-muted">
+                            显示第 {{ page_obj.start_index }} - {{ page_obj.end_index }} 条，
+                            共 {{ page_obj.paginator.count }} 条记录
+                        </small>
+                    </div>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-history fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">暂无登录记录</h4>
+                    <p class="text-muted">您的登录记录将在这里显示</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 安全提示 -->
+    <div class="alert alert-info mt-4">
+        <h6 class="alert-heading">
+            <i class="fas fa-shield-alt me-2"></i>安全提示
+        </h6>
+        <p class="mb-2">请定期检查您的登录记录，如发现异常登录请及时修改密码。</p>
+        <ul class="mb-0">
+            <li>如果发现不认识的IP地址或设备，请立即修改密码</li>
+            <li>建议定期更换密码，保护账户安全</li>
+            <li>避免在公共设备上登录，或登录后及时退出</li>
+        </ul>
+    </div>
+</div>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.card-header {
+    background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.table th {
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.pagination .page-link {
+    color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+.pagination .page-link:hover {
+    color: #138496;
+    background-color: #e9ecef;
+    border-color: #138496;
+}
+</style>
+{% endblock %}

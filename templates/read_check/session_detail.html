@@ -1,0 +1,393 @@
+{% extends 'base.html' %}
+
+{% block title %}检测会话详情{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 页面头部 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">检测会话详情</h1>
+            <p class="text-muted">查看阅读量检测的详细流程</p>
+        </div>
+        <div>
+            <a href="{% url 'read_check_sessions' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>返回列表
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 左侧：会话信息 -->
+        <div class="col-lg-4">
+            <!-- 基本信息 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>基本信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">检测链接</label>
+                        <div class="text-break">{{ session.url }}</div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted">状态</label>
+                            <div>
+                                {% if session.status == 'running' %}
+                                    <span class="badge bg-warning fs-6">{{ session.get_status_display }}</span>
+                                {% elif session.status == 'completed' %}
+                                    <span class="badge bg-success fs-6">{{ session.get_status_display }}</span>
+                                {% elif session.status == 'failed' %}
+                                    <span class="badge bg-danger fs-6">{{ session.get_status_display }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted">结果</label>
+                            <div>
+                                {% if session.result == 'increased' %}
+                                    <span class="badge bg-success fs-6">
+                                        <i class="fas fa-arrow-up me-1"></i>{{ session.get_result_display }}
+                                    </span>
+                                {% elif session.result == 'no_change' %}
+                                    <span class="badge bg-secondary fs-6">
+                                        <i class="fas fa-minus me-1"></i>{{ session.get_result_display }}
+                                    </span>
+                                {% elif session.result == 'error' %}
+                                    <span class="badge bg-danger fs-6">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>{{ session.get_result_display }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted">开始时间</label>
+                            <div>{{ session.started_at|date:"Y-m-d H:i:s" }}</div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted">完成时间</label>
+                            <div>
+                                {% if session.completed_at %}
+                                    {{ session.completed_at|date:"Y-m-d H:i:s" }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if session.duration_seconds %}
+                    <div class="mb-3">
+                        <label class="form-label text-muted">持续时间</label>
+                        <div>{{ session.duration_seconds|floatformat:1 }} 秒</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 统计信息 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>统计信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="border-end">
+                                <div class="h4 mb-0 text-primary">{{ session.total_accounts }}</div>
+                                <small class="text-muted">总账号数</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border-end">
+                                <div class="h4 mb-0 text-success">{{ session.successful_accounts }}</div>
+                                <small class="text-muted">成功账号</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="h4 mb-0 text-danger">{{ session.failed_accounts }}</div>
+                            <small class="text-muted">失败账号</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 阅读量信息 -->
+            {% if session.initial_read_count is not None or session.final_read_count is not None %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>阅读量信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted">初始阅读量</label>
+                            <div class="h5 mb-0">
+                                {% if session.initial_read_count is not None %}
+                                    {{ session.initial_read_count }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted">最终阅读量</label>
+                            <div class="h5 mb-0">
+                                {% if session.final_read_count is not None %}
+                                    {{ session.final_read_count }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if session.increased_count > 0 %}
+                    <div class="text-center">
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-arrow-up me-2"></i>
+                            <strong>阅读量增加：{{ session.increased_count }}</strong>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 右侧：检测流程 -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list-ol me-2"></i>检测流程日志
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if process_logs %}
+                    <div class="timeline">
+                        {% for log in process_logs %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker">
+                                <span class="timeline-icon">{{ log.icon }}</span>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <span class="timeline-time">{{ log.formatted_time }}</span>
+                                    <span class="timeline-type badge badge-sm 
+                                        {% if log.log_type == 'start' %}bg-primary
+                                        {% elif log.log_type == 'complete' %}bg-success
+                                        {% elif log.log_type == 'error' %}bg-danger
+                                        {% elif log.log_type == 'warning' %}bg-warning
+                                        {% elif log.log_type == 'read_change' %}bg-success
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ log.get_log_type_display }}
+                                    </span>
+                                </div>
+                                <div class="timeline-body">
+                                    <div class="timeline-message">{{ log.message }}</div>
+                                    
+                                    {% if log.wxid %}
+                                    <div class="timeline-details mt-2">
+                                        <small class="text-muted">
+                                            <i class="fas fa-user me-1"></i>账号：{{ log.wxid }}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if log.protocol_url %}
+                                    <div class="timeline-details">
+                                        <small class="text-muted">
+                                            <i class="fas fa-server me-1"></i>协议：{{ log.protocol_url }}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if log.read_count is not None %}
+                                    <div class="timeline-details">
+                                        <small class="text-muted">
+                                            <i class="fas fa-eye me-1"></i>阅读量：{{ log.read_count }}
+                                            {% if log.previous_read_count is not None %}
+                                                (之前：{{ log.previous_read_count }})
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-list fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无流程日志</h5>
+                        <p class="text-muted">该检测会话还没有生成流程日志。</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border-radius: 0.5rem;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.badge.fs-6 {
+    font-size: 0.875rem !important;
+    padding: 0.5em 0.75em;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 1rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, #e9ecef, #dee2e6);
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -2rem;
+    top: 0;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timeline-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    background: white;
+    border: 2px solid #dee2e6;
+    border-radius: 50%;
+    font-size: 0.875rem;
+    z-index: 1;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-left: 1rem;
+    border-left: 3px solid #dee2e6;
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.timeline-time {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    color: #495057;
+}
+
+.timeline-type {
+    font-size: 0.75rem;
+}
+
+.timeline-message {
+    font-weight: 500;
+    color: #212529;
+    margin-bottom: 0.5rem;
+}
+
+.timeline-details {
+    margin-top: 0.25rem;
+}
+
+.timeline-details small {
+    display: block;
+    line-height: 1.4;
+}
+
+/* 不同日志类型的时间轴图标颜色 */
+.timeline-item:has(.bg-primary) .timeline-icon {
+    border-color: #0d6efd;
+    background: #e7f1ff;
+}
+
+.timeline-item:has(.bg-success) .timeline-icon {
+    border-color: #198754;
+    background: #d1e7dd;
+}
+
+.timeline-item:has(.bg-danger) .timeline-icon {
+    border-color: #dc3545;
+    background: #f8d7da;
+}
+
+.timeline-item:has(.bg-warning) .timeline-icon {
+    border-color: #ffc107;
+    background: #fff3cd;
+}
+
+.alert {
+    border-radius: 0.5rem;
+    border: none;
+}
+
+.text-break {
+    word-break: break-all;
+    word-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+    .timeline {
+        padding-left: 1.5rem;
+    }
+    
+    .timeline-marker {
+        left: -1.5rem;
+    }
+    
+    .timeline-content {
+        margin-left: 0.5rem;
+    }
+}
+</style>
+{% endblock %}

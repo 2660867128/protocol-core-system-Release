@@ -1,0 +1,864 @@
+{% extends 'base.html' %}
+
+{% block title %}微信登录 - 协议核心管理系统{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fab fa-weixin me-2 text-success"></i>微信登录
+        </h2>
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>返回仪表板
+        </a>
+    </div>
+
+    <!-- 连接选择区域 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-gradient-primary text-white border-0">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-link me-3 fa-lg"></i>
+                        <h5 class="mb-0 fw-bold">选择连接</h5>
+                        <span class="badge bg-light text-primary ms-auto">{{ connections|length }} 个连接</span>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    {% if connections %}
+                    <div class="row g-4">
+                        {% for connection in connections %}
+                        <div class="col-lg-4 col-md-6">
+                            <div class="connection-card card h-100 border-0 shadow-sm" data-connection-id="{{ connection.id }}">
+                                <div class="card-body p-4">
+                                    <!-- 连接头部信息 -->
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div class="connection-info">
+                                            <h6 class="card-title mb-1 fw-bold text-dark">{{ connection.name }}</h6>
+                                            <div class="connection-type mb-2">
+                                                <span class="badge bg-{{ connection.connection_type|yesno:'info,warning,success' }} bg-opacity-10 text-{{ connection.connection_type|yesno:'info,warning,success' }} border border-{{ connection.connection_type|yesno:'info,warning,success' }} border-opacity-25">
+                                                    <i class="fas fa-server me-1"></i>{{ connection.connection_type }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="connection-status">
+                                            <span class="badge bg-{{ connection.is_active|yesno:'success,secondary' }} rounded-pill">
+                                                <i class="fas fa-{{ connection.is_active|yesno:'check,times' }} me-1"></i>
+                                                {{ connection.is_active|yesno:'启用,禁用' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 连接地址 -->
+                                    <div class="connection-url mb-3">
+                                        <div class="url-container bg-light rounded p-2">
+                                            <code class="small text-muted">{{ connection.url }}</code>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 登录按钮组 -->
+                                    <div class="login-buttons">
+                                        {% if connection.connection_type == 'wechatx' %}
+                                        <div class="btn-group w-100 mb-2" role="group">
+                                            <button class="btn btn-primary btn-sm" onclick="startLogin('{{ connection.id }}', 'ipad')">
+                                                <i class="fas fa-tablet-alt me-1"></i>iPad登录
+                                            </button>
+                                            <button class="btn btn-info btn-sm" onclick="startLogin('{{ connection.id }}', 'ipad_backup')">
+                                                <i class="fas fa-shield-alt me-1"></i>iPad备用
+                                            </button>
+                                        </div>
+                                        <button class="btn btn-warning btn-sm w-100" onclick="startLogin('{{ connection.id }}', 'car')">
+                                            <i class="fas fa-car me-1"></i>车载登录
+                                        </button>
+                                        {% elif connection.connection_type == 'wechatx-861' %}
+                                        <button class="btn btn-primary btn-sm w-100" onclick="startLogin('{{ connection.id }}', '861_ipad')">
+                                            <i class="fas fa-tablet-alt me-1"></i>861-iPad登录
+                                        </button>
+                                        {% elif connection.connection_type == 'WeCharPadPro' %}
+                                        <div class="btn-group w-100 mb-2" role="group">
+                                            <button class="btn btn-success btn-sm" onclick="generateAuthCode('{{ connection.id }}')">
+                                                <i class="fas fa-key me-1"></i>生成授权码
+                                            </button>
+                                            <button class="btn btn-primary btn-sm" onclick="loginPro('{{ connection.id }}')">
+                                                <i class="fas fa-crown me-1"></i>登录Pro
+                                            </button>
+                                        </div>
+                                        {% else %}
+                                        <div class="text-muted text-center py-2">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            <small>该连接类型不支持微信登录</small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state text-center py-5">
+                        <div class="empty-icon mb-4">
+                            <i class="fas fa-link fa-4x text-muted opacity-50"></i>
+                        </div>
+                        <h4 class="text-muted mb-3">暂无可用连接</h4>
+                        <p class="text-muted mb-4">请先添加wechatx、wechatx-861或WeCharPadPro类型的连接</p>
+                        <a href="{% url 'connection_create' %}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus me-2"></i>添加连接
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 授权码自动登录区域 -->
+    {% if connections %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-gradient-success text-white border-0">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-key me-3 fa-lg"></i>
+                        <h5 class="mb-0 fw-bold">授权码自动登录</h5>
+                        <span class="badge bg-light text-success ms-auto">快速登录</span>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    {% for connection in connections %}
+                        {% if connection.auth_codes.all %}
+                        <div class="connection-group mb-4">
+                            <div class="connection-header d-flex align-items-center mb-3">
+                                <h6 class="mb-0 text-dark fw-bold">{{ connection.name }}</h6>
+                                <span class="badge bg-{{ connection.connection_type|yesno:'info,warning,success' }} bg-opacity-10 text-{{ connection.connection_type|yesno:'info,warning,success' }} ms-2">
+                                    {{ connection.auth_codes.all|length }} 个授权码
+                                </span>
+                            </div>
+                            <div class="row g-3">
+                                {% for auth_code in connection.auth_codes.all %}
+                                <div class="col-lg-3 col-md-4 col-sm-6">
+                                    <div class="auth-code-card card h-100 border-0 bg-light">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div class="auth-info flex-grow-1">
+                                                    <div class="auth-name text-truncate fw-medium text-dark">
+                                                        {{ auth_code.remark_display|default:"未知账号" }}
+                                                    </div>
+                                                    <code class="small text-muted">{{ auth_code.code|truncatechars:15 }}</code>
+                                                </div>
+                                                <button class="btn btn-sm btn-outline-success rounded-pill" 
+                                                        onclick="autoLogin('{{ connection.id }}', '{{ auth_code.id }}')"
+                                                        title="一键登录">
+                                                    <i class="fas fa-sign-in-alt"></i>
+                                                </button>
+                                            </div>
+                                            {% if auth_code.is_online is not None %}
+                                            <div class="auth-status mt-2">
+                                                <span class="badge bg-{{ auth_code.is_online|yesno:'success,danger' }} bg-opacity-10 text-{{ auth_code.is_online|yesno:'success,danger' }} rounded-pill">
+                                                    <i class="fas fa-circle fa-xs me-1"></i>
+                                                    {{ auth_code.is_online|yesno:'在线,离线' }}
+                                                </span>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% empty %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-key fa-3x text-muted opacity-50 mb-3"></i>
+                        <h6 class="text-muted">暂无授权码</h6>
+                        <p class="text-muted small">请先在连接管理中添加微信授权码</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 二维码登录模态框 -->
+<div class="modal fade" id="qrLoginModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fab fa-weixin me-2 text-success"></i>扫码登录
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="handleCancelClick()"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="qrCodeContainer">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p>正在生成二维码...</p>
+                </div>
+                <div id="statusMessage" class="mt-3">
+                    <p class="text-muted">请使用微信扫描二维码登录</p>
+                </div>
+                <div class="progress mt-3" style="height: 6px;">
+                    <div class="progress-bar" role="progressbar" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="handleCancelClick()">取消</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentSession = null;
+let statusCheckInterval = null;
+let isStatusCheckStopped = false;
+
+// 开始登录
+function startLogin(connectionId, loginType) {
+    // 先停止任何现有的状态检查
+    stopStatusCheck();
+    
+    $('#qrLoginModal').modal('show');
+    
+    // 重置状态
+    $('#qrCodeContainer').html(`
+        <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>正在生成二维码...</p>
+    `);
+    $('#statusMessage').html('<p class="text-muted">请使用微信扫描二维码登录</p>');
+    
+    // 获取二维码
+    $.ajax({
+        url: `/dashboard/wechat-login/${connectionId}/qr/`,
+        method: 'POST',
+        data: JSON.stringify({
+            type: loginType
+        }),
+        contentType: 'application/json',
+        headers: {
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function(response) {
+            if (response.code === 200) {
+                currentSession = response.data.session_id;
+                
+                // 显示二维码
+                $('#qrCodeContainer').html(`
+                    <img src="${response.data.qr_image}" class="img-fluid mb-3" style="max-width: 240px;">
+                    <p class="text-muted">二维码有效期: 100秒</p>
+                `);
+                
+                // 开始检查状态
+                startStatusCheck();
+                
+                // 设置过期时间
+                setTimeout(() => {
+                    if (currentSession) {
+                        $('#statusMessage').html('<p class="text-danger">二维码已过期，请重新获取</p>');
+                        stopStatusCheck();
+                    }
+                }, 100000);
+                
+            } else {
+                $('#qrCodeContainer').html(`
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <p class="text-danger">${response.msg}</p>
+                `);
+            }
+        },
+        error: function(xhr) {
+            const response = xhr.responseJSON || {};
+            $('#qrCodeContainer').html(`
+                <i class="fas fa-times-circle fa-3x text-danger mb-3"></i>
+                <p class="text-danger">获取二维码失败：${response.msg || '网络错误'}</p>
+            `);
+        }
+    });
+}
+
+// 开始状态检查
+function startStatusCheck() {
+    if (!currentSession) return;
+    
+    console.log('开始状态检查，会话ID:', currentSession);
+    isStatusCheckStopped = false;
+    
+    statusCheckInterval = setInterval(() => {
+        if (!currentSession || isStatusCheckStopped) {
+            console.log('会话已清空或已停止，停止状态检查');
+            stopStatusCheck();
+            return;
+        }
+        
+        console.log('执行状态检查，会话ID:', currentSession);
+        
+        $.ajax({
+            url: `/dashboard/wechat-login/session/${currentSession}/status/`,
+            method: 'GET',
+            success: function(response) {
+                // 检查是否已经停止状态检查
+                if (isStatusCheckStopped || !currentSession) {
+                    console.log('状态检查已停止，忽略响应');
+                    return;
+                }
+                
+                if (response.code === 200) {
+                    const data = response.data;
+                    
+                    if (data.status === 'success') {
+                        $('#statusMessage').html(`
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle me-2"></i>
+                                登录成功！<br>
+                                <small>wxid: ${data.wxid}<br>昵称: ${data.nickname}</small>
+                            </div>
+                        `);
+                        stopStatusCheck();
+                        setTimeout(() => {
+                            $('#qrLoginModal').modal('hide');
+                            showMessage('登录成功！', 'success');
+                        }, 2000);
+                        
+                    } else if (data.status === 'scanned') {
+                        $('#statusMessage').html(`
+                            <div class="alert alert-info">
+                                <i class="fas fa-mobile-alt me-2"></i>
+                                ${data.message}
+                            </div>
+                        `);
+                        
+                    } else if (data.status === 'expired') {
+                        $('#statusMessage').html(`
+                            <div class="alert alert-warning">
+                                <i class="fas fa-clock me-2"></i>
+                                二维码已过期
+                            </div>
+                        `);
+                        stopStatusCheck();
+                        
+                    } else if (data.status === 'failed') {
+                        $('#statusMessage').html(`
+                            <div class="alert alert-danger">
+                                <i class="fas fa-times-circle me-2"></i>
+                                ${data.message}
+                            </div>
+                        `);
+                        stopStatusCheck();
+                        
+                    } else if (data.status === 'cancelled') {
+                        console.log('检测到会话已取消');
+                        $('#statusMessage').html(`
+                            <div class="alert alert-secondary">
+                                <i class="fas fa-ban me-1"></i>
+                                登录已取消
+                            </div>
+                        `);
+                        stopStatusCheck();
+                        setTimeout(() => {
+                            $('#qrLoginModal').modal('hide');
+                        }, 2000);
+                    }
+                }
+            },
+            error: function() {
+                // 静默处理错误，继续检查
+            }
+        });
+    }, 2000);
+}
+
+// 停止状态检查
+function stopStatusCheck() {
+    console.log('停止状态检查，当前interval:', statusCheckInterval);
+    isStatusCheckStopped = true;
+    if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+        statusCheckInterval = null;
+        console.log('状态检查已停止');
+    }
+    currentSession = null;
+}
+
+// 自动登录
+function autoLogin(connectionId, codeId) {
+    const btn = event.target.closest('button');
+    const originalHtml = btn.innerHTML;
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+    
+    $.ajax({
+        url: `/dashboard/wechat-login/${connectionId}/auto-login/${codeId}/`,
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function(response) {
+            if (response.code === 200) {
+                showMessage('自动登录成功！', 'success');
+            } else if (response.code === 202) {
+                // 需要扫码登录
+                showMessage('需要扫码登录，正在获取二维码...', 'info');
+                startLogin(connectionId, response.data.device_type);
+            } else {
+                showMessage('自动登录失败：' + response.msg, 'warning');
+            }
+        },
+        error: function(xhr) {
+            const response = xhr.responseJSON || {};
+            showMessage('自动登录失败：' + (response.msg || '网络错误'), 'danger');
+        },
+        complete: function() {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    });
+}
+
+// 显示消息
+function showMessage(message, type = 'info') {
+    const alertClass = {
+        'success': 'alert-success',
+        'error': 'alert-danger',
+        'danger': 'alert-danger',
+        'warning': 'alert-warning',
+        'info': 'alert-info'
+    }[type] || 'alert-info';
+    
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    // 移除现有的alert
+    $('.alert').remove();
+    
+    // 添加新的alert到页面顶部
+    $('h2').after(alertHtml);
+    
+    // 3秒后自动消失
+    setTimeout(() => {
+        $('.alert').fadeOut();
+    }, 3000);
+}
+
+
+// 模态框关闭时清理
+$('#qrLoginModal').on('hidden.bs.modal', function() {
+    console.log('模态框关闭，当前会话:', currentSession);
+    
+    // 立即停止状态检查
+    stopStatusCheck();
+    
+    // 如果有活跃的会话，取消它
+    if (currentSession) {
+        cancelQRSession(currentSession);
+    }
+});
+
+// 模态框开始关闭时立即停止状态检查
+$('#qrLoginModal').on('hide.bs.modal', function() {
+    console.log('模态框开始关闭，立即停止状态检查');
+    stopStatusCheck();
+});
+
+// 处理取消按钮点击
+function handleCancelClick() {
+    console.log('用户点击取消按钮');
+    stopStatusCheck();
+    if (currentSession) {
+        cancelQRSession(currentSession);
+    }
+}
+
+// 取消二维码会话
+function cancelQRSession(sessionId) {
+    console.log('正在取消会话:', sessionId);
+    $.ajax({
+        url: `/dashboard/wechat-login/session/${sessionId}/cancel/`,
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function(response) {
+            console.log('会话已取消:', response.msg);
+        },
+        error: function(xhr) {
+            console.log('取消会话失败:', xhr.responseJSON?.msg || '网络错误');
+        }
+    });
+}
+
+// WeCharPadPro - 生成授权码
+function generateAuthCode(connectionId) {
+    const btn = event.target.closest('button');
+    const originalHtml = btn.innerHTML;
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+    btn.disabled = true;
+    
+    // 询问用户生成天数
+    const days = prompt('请输入授权码有效天数（默认30天）：', '30');
+    if (!days || isNaN(days) || parseInt(days) <= 0) {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        if (days !== null) {
+            showMessage('请输入有效的天数', 'warning');
+        }
+        return;
+    }
+    
+    $.ajax({
+        url: `/dashboard/api/connections/${connectionId}/generate-auth-code/`,
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+            'Content-Type': 'application/json'
+        },
+        data: JSON.stringify({
+            days: parseInt(days)
+        }),
+        success: function(response) {
+            if (response.code === 200) {
+                const authCodes = response.data.auth_codes;
+                if (authCodes && authCodes.length > 0) {
+                    let message = `🎉 授权码生成成功！\n生成数量: ${authCodes.length}`;
+                    authCodes.forEach((code, index) => {
+                        message += `\n${index + 1}. ${code}`;
+                    });
+                    
+                    // 询问是否添加到系统
+                    if (confirm('是否将生成的授权码添加到系统中？')) {
+                        addAuthCodesToSystem(connectionId, authCodes);
+                    }
+                    
+                    showMessage(message, 'success');
+                } else {
+                    showMessage('授权码生成成功，但未返回授权码信息', 'info');
+                }
+            } else {
+                showMessage('生成授权码失败：' + response.msg, 'danger');
+            }
+        },
+        error: function(xhr) {
+            const response = xhr.responseJSON || {};
+            showMessage('生成授权码失败：' + (response.msg || '网络错误'), 'danger');
+        },
+        complete: function() {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    });
+}
+
+// WeCharPadPro - 登录Pro
+function loginPro(connectionId) {
+    // 检查是否有可用的授权码
+    $.ajax({
+        url: `/dashboard/connections/${connectionId}/`,
+        method: 'GET',
+        success: function(response) {
+            // 这里需要检查连接详情，获取授权码列表
+            // 由于当前页面结构限制，我们直接跳转到连接详情页面
+            window.location.href = `/dashboard/connections/${connectionId}/`;
+        },
+        error: function() {
+            showMessage('无法获取连接信息，请直接前往连接管理页面', 'warning');
+            setTimeout(() => {
+                window.location.href = `/dashboard/connections/`;
+            }, 2000);
+        }
+    });
+}
+
+// 添加授权码到系统
+function addAuthCodesToSystem(connectionId, authCodes) {
+    let addedCount = 0;
+    let totalCount = authCodes.length;
+    
+    authCodes.forEach((code, index) => {
+        const remark = prompt(`请为授权码 ${code.substring(0, 8)}... 输入备注名称：`, `Pro授权码-${index + 1}`);
+        if (remark !== null) {
+            $.ajax({
+                url: `/dashboard/api/connections/${connectionId}/auth-codes/`,
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    code: code,
+                    remark: remark
+                }),
+                success: function(response) {
+                    addedCount++;
+                    if (addedCount === totalCount) {
+                        showMessage(`✅ 成功添加 ${addedCount} 个授权码到系统`, 'success');
+                        // 刷新授权码自动登录区域
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    }
+                },
+                error: function(xhr) {
+                    const response = xhr.responseJSON || {};
+                    showMessage(`添加授权码 ${code.substring(0, 8)}... 失败：${response.msg || '网络错误'}`, 'warning');
+                }
+            });
+        }
+    });
+}
+
+// 页面加载完成
+$(document).ready(function() {
+    // 页面初始化完成
+    console.log('微信登录页面加载完成');
+});
+</script>
+
+<style>
+/* 微信登录页面样式 */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 连接卡片样式 */
+.connection-card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.connection-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1) !important;
+}
+
+.connection-info h6 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.connection-type .badge {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+}
+
+.connection-status .badge {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+}
+
+.url-container {
+    border: 1px solid #e9ecef;
+}
+
+.url-container code {
+    color: #6c757d;
+    background: transparent;
+    font-size: 0.8rem;
+}
+
+/* 登录按钮样式 */
+.login-buttons .btn {
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.login-buttons .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.login-buttons .btn i {
+    font-size: 0.9rem;
+}
+
+/* 授权码卡片样式 */
+.auth-code-card {
+    transition: all 0.3s ease;
+    border-radius: 10px;
+    background: #f8f9fa !important;
+    border: 1px solid #e9ecef;
+}
+
+.auth-code-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08) !important;
+    background: #ffffff !important;
+}
+
+.auth-info .auth-name {
+    font-size: 0.9rem;
+    line-height: 1.3;
+}
+
+.auth-info code {
+    font-size: 0.75rem;
+    background: transparent;
+    color: #6c757d;
+    padding: 0;
+}
+
+.auth-status .badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* 连接组样式 */
+.connection-group {
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 1.5rem;
+}
+
+.connection-group:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.connection-header h6 {
+    color: #2c3e50;
+    font-size: 1rem;
+}
+
+.connection-header .badge {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+}
+
+/* 卡片头部渐变 */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+}
+
+.bg-gradient-success {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%) !important;
+}
+
+/* 空状态样式 */
+.empty-state {
+    padding: 3rem 2rem;
+}
+
+.empty-icon {
+    margin-bottom: 1.5rem;
+}
+
+.empty-state h4 {
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.empty-state p {
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .connection-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    .login-buttons .btn {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+    }
+    
+    .auth-code-card .card-body {
+        padding: 0.75rem;
+    }
+    
+    .connection-header h6 {
+        font-size: 0.9rem;
+    }
+    
+    .empty-state {
+        padding: 2rem 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .connection-card {
+        margin-bottom: 1rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+    }
+    
+    .btn-group .btn {
+        border-radius: 8px !important;
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-group .btn:last-child {
+        margin-bottom: 0;
+    }
+}
+
+/* 二维码模态框样式增强 */
+.modal-content {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+
+.modal-header {
+    border-bottom: 1px solid #f0f0f0;
+    padding: 1.5rem;
+}
+
+.modal-body {
+    padding: 2rem;
+}
+
+.modal-footer {
+    border-top: 1px solid #f0f0f0;
+    padding: 1rem 1.5rem;
+}
+
+#qrCodeContainer img {
+    border-radius: 10px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.progress {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* 进度条动画 */
+.progress-bar {
+    animation: progress-animation 100s linear;
+}
+
+@keyframes progress-animation {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+</style>
+{% endblock %}

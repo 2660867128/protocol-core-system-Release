@@ -1,0 +1,590 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}协议服务配置{% endblock %}
+
+{% block extra_css %}
+<style>
+.config-card {
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.config-card .card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px 10px 0 0 !important;
+    border: none;
+}
+
+.status-badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-running {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-stopped {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.log-item {
+    border-left: 4px solid #007bff;
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    background-color: #f8f9fa;
+    border-radius: 0 5px 5px 0;
+}
+
+.log-item.success {
+    border-left-color: #28a745;
+}
+
+.log-item.error {
+    border-left-color: #dc3545;
+}
+
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-cogs me-2"></i>协议服务配置</h2>
+                <div>
+                    <span class="status-badge status-running" id="serviceStatus">
+                        <i class="fas fa-circle me-1"></i>运行中
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 服务配置 -->
+        <div class="col-md-8">
+            <div class="card config-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-server me-2"></i>服务配置</h5>
+                </div>
+                <div class="card-body">
+                    <form id="configForm">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="servicePassword" class="form-label">协议服务密码</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" id="servicePassword" 
+                                               value="{{ config.service_password }}" placeholder="留空表示不设置密码">
+                                        <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <small class="form-text text-muted">设置API访问密码，增强安全性</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="servicePort" class="form-label">服务端口</label>
+                                    <input type="text" class="form-control" id="servicePort" 
+                                           value="8001" readonly disabled>
+                                    <small class="form-text text-muted">服务端口由系统配置决定，不可修改</small>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 自动刷新配置 -->
+            <div class="card config-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-sync-alt me-2"></i>自动刷新配置</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="autoRefreshEnabled" 
+                                           {% if config.auto_refresh_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="autoRefreshEnabled">
+                                        启用自动刷新
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">定时自动刷新微信连接</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="refreshInterval" class="form-label">刷新间隔(分钟)</label>
+                                <input type="number" class="form-control" id="refreshInterval" 
+                                       value="{{ config.refresh_interval }}" min="5" max="1440">
+                                <small class="form-text text-muted">自动刷新的时间间隔</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="refreshWechatxOnly" 
+                                           {% if config.refresh_wechatx_only %}checked{% endif %}>
+                                    <label class="form-check-label" for="refreshWechatxOnly">
+                                        仅刷新WeChat-X连接
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">只刷新类型为wechatx的微信连接</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="enableDebugLog" 
+                                           {% if config.enable_debug_log %}checked{% endif %}>
+                                    <label class="form-check-label" for="enableDebugLog">
+                                        启用调试日志
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">启用详细的调试日志输出</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="logRetentionDays" class="form-label">
+                                    <i class="fas fa-calendar-alt me-2"></i>日志保留天数
+                                </label>
+                                <input type="number" class="form-control" id="logRetentionDays" 
+                                       value="{{ config.log_retention_days }}" min="1" max="365">
+                                <small class="form-text text-muted">自动删除多少天前的日志，范围：1-365天</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <button type="button" class="btn btn-warning" id="cleanupLogsBtn">
+                                    <i class="fas fa-trash-alt me-2"></i>立即清理日志
+                                </button>
+                                <small class="form-text text-muted d-block mt-2">根据当前设置清理过期日志</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-primary" id="saveConfigBtn">
+                                    <i class="fas fa-save me-2"></i>保存配置
+                                </button>
+                                <button type="button" class="btn btn-success" id="manualRefreshBtn">
+                                    <i class="fas fa-sync me-2"></i>立即刷新
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 自动登录配置 -->
+            <div class="card config-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-sign-in-alt me-2"></i>自动登录配置</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="autoLoginEnabled" 
+                                           {% if config.auto_login_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="autoLoginEnabled">
+                                        启用自动登录
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">启用定时自动登录功能</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="autoLoginInterval" class="form-label">
+                                    <i class="fas fa-clock me-2"></i>登录间隔(分钟)
+                                </label>
+                                <input type="number" class="form-control" id="autoLoginInterval" 
+                                       value="{{ config.auto_login_interval }}" min="5" max="1440">
+                                <small class="form-text text-muted">自动登录间隔，范围：5-1440分钟</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>说明：</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>定时任务会自动检测需要登录的微信账号</li>
+                                    <li>如果登录需要二维码，会自动跳过该账号</li>
+                                    <li>登录成功后会自动更新账号状态为在线</li>
+                                    <li>所有登录操作都会记录详细日志</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 服务状态和日志 -->
+        <div class="col-md-4">
+            <!-- 服务状态 -->
+            <div class="card config-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>服务状态</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>监听端口：</strong>
+                        <span class="text-primary" id="currentPort">8001</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>密码保护：</strong>
+                        <span class="badge bg-{% if config.service_password %}success{% else %}secondary{% endif %}" id="passwordStatus">
+                            {% if config.service_password %}已设置{% else %}未设置{% endif %}
+                        </span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>自动刷新：</strong>
+                        <span class="badge bg-{% if config.auto_refresh_enabled %}success{% else %}secondary{% endif %}" id="autoRefreshStatus">
+                            {% if config.auto_refresh_enabled %}已启用{% else %}已禁用{% endif %}
+                        </span>
+                    </div>
+                    {% if config.last_refresh_time %}
+                    <div class="mb-3">
+                        <strong>上次刷新：</strong>
+                        <small class="text-muted">{{ config.last_refresh_time|date:"Y-m-d H:i:s" }}</small>
+                    </div>
+                    {% else %}
+                    <div class="mb-3">
+                        <strong>上次刷新：</strong>
+                        <small class="text-muted">从未刷新</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 刷新日志 -->
+            <div class="card config-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>刷新日志</h5>
+                    <button type="button" class="btn btn-sm btn-outline-light" id="refreshLogsBtn">
+                        <i class="fas fa-refresh"></i>
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div id="refreshLogs" style="max-height: 400px; overflow-y: auto;">
+                        {% for log in recent_logs %}
+                        <div class="log-item {% if log.failed_count > 0 %}error{% else %}success{% endif %}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>{{ log.get_refresh_type_display }}</strong>
+                                    <small class="text-muted d-block">{{ log.created_at|date:"m-d H:i" }}</small>
+                                </div>
+                                <span class="badge bg-{% if log.failed_count > 0 %}danger{% else %}success{% endif %}">
+                                    {{ log.success_count }}/{{ log.connection_count }}
+                                </span>
+                            </div>
+                            {% if log.error_message %}
+                            <small class="text-danger d-block mt-1">{{ log.error_message|truncatechars:100 }}</small>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted p-3">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p>暂无刷新日志</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // 切换密码显示
+    $('#togglePassword').click(function() {
+        const passwordField = $('#servicePassword');
+        const icon = $(this).find('i');
+        
+        if (passwordField.attr('type') === 'password') {
+            passwordField.attr('type', 'text');
+            icon.removeClass('fa-eye').addClass('fa-eye-slash');
+        } else {
+            passwordField.attr('type', 'password');
+            icon.removeClass('fa-eye-slash').addClass('fa-eye');
+        }
+    });
+
+    // 保存配置
+    $('#saveConfigBtn').click(function() {
+        const btn = $(this);
+        const originalHtml = btn.html();
+        
+        btn.html('<i class="fas fa-spinner fa-spin me-2"></i>保存中...');
+        btn.prop('disabled', true);
+        
+        const configData = {
+            service_password: $('#servicePassword').val(),
+            auto_refresh_enabled: $('#autoRefreshEnabled').is(':checked'),
+            refresh_interval: parseInt($('#refreshInterval').val()),
+            refresh_wechatx_only: $('#refreshWechatxOnly').is(':checked'),
+            auto_login_enabled: $('#autoLoginEnabled').is(':checked'),
+            auto_login_interval: parseInt($('#autoLoginInterval').val()),
+            enable_debug_log: $('#enableDebugLog').is(':checked'),
+            log_retention_days: parseInt($('#logRetentionDays').val())
+        };
+        
+        $.ajax({
+            url: '/dashboard/protocol-config/api/config/save/',
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            data: JSON.stringify(configData),
+            contentType: 'application/json',
+            success: function(response) {
+                if (response.code === 200) {
+                    showMessage('配置保存成功！', 'success');
+                    updateServiceStatus(response.data);
+                } else {
+                    showMessage('保存失败：' + response.msg, 'danger');
+                }
+            },
+            error: function(xhr) {
+                const response = xhr.responseJSON || {};
+                showMessage('保存失败：' + (response.msg || '网络错误'), 'danger');
+            },
+            complete: function() {
+                btn.html(originalHtml);
+                btn.prop('disabled', false);
+            }
+        });
+    });
+
+    // 手动刷新
+    $('#manualRefreshBtn').click(function() {
+        const btn = $(this);
+        const originalHtml = btn.html();
+        
+        btn.html('<i class="fas fa-spinner fa-spin me-2"></i>刷新中...');
+        btn.prop('disabled', true);
+        
+        $.ajax({
+            url: '/dashboard/protocol-config/api/refresh/manual/',
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.code === 200) {
+                    const data = response.data;
+                    showMessage(`刷新完成！成功：${data.success}，失败：${data.failed}，总计：${data.total}`, 'success');
+                    loadRefreshLogs();
+                    // 更新上次刷新时间显示
+                    updateLastRefreshTime();
+                } else {
+                    showMessage('刷新失败：' + response.msg, 'danger');
+                }
+            },
+            error: function(xhr) {
+                const response = xhr.responseJSON || {};
+                showMessage('刷新失败：' + (response.msg || '网络错误'), 'danger');
+            },
+            complete: function() {
+                btn.html(originalHtml);
+                btn.prop('disabled', false);
+            }
+        });
+    });
+
+    // 刷新日志
+    $('#refreshLogsBtn').click(function() {
+        loadRefreshLogs();
+    });
+
+    // 更新服务状态显示
+    function updateServiceStatus(data) {
+        // 端口显示使用服务器配置的端口
+        $('#passwordStatus').removeClass('bg-success bg-secondary')
+            .addClass(data.service_password ? 'bg-success' : 'bg-secondary')
+            .text(data.service_password ? '已设置' : '未设置');
+        $('#autoRefreshStatus').removeClass('bg-success bg-secondary')
+            .addClass(data.auto_refresh_enabled ? 'bg-success' : 'bg-secondary')
+            .text(data.auto_refresh_enabled ? '已启用' : '已禁用');
+    }
+
+    // 更新上次刷新时间显示
+    function updateLastRefreshTime() {
+        const now = new Date();
+        const timeString = now.getFullYear() + '-' + 
+                          String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                          String(now.getDate()).padStart(2, '0') + ' ' + 
+                          String(now.getHours()).padStart(2, '0') + ':' + 
+                          String(now.getMinutes()).padStart(2, '0') + ':' + 
+                          String(now.getSeconds()).padStart(2, '0');
+        
+        // 查找并更新上次刷新时间显示
+        const refreshTimeElement = $('strong:contains("上次刷新：")').parent().find('small');
+        if (refreshTimeElement.length > 0) {
+            refreshTimeElement.text(timeString);
+        }
+    }
+
+    // 加载刷新日志
+    function loadRefreshLogs() {
+        $.ajax({
+            url: '/dashboard/protocol-config/api/refresh/logs/',
+            method: 'GET',
+            success: function(response) {
+                if (response.code === 200) {
+                    const logs = response.data;
+                    let html = '';
+                    
+                    if (logs.length === 0) {
+                        html = `
+                            <div class="text-center text-muted p-3">
+                                <i class="fas fa-inbox fa-2x mb-2"></i>
+                                <p>暂无刷新日志</p>
+                            </div>
+                        `;
+                    } else {
+                        logs.forEach(function(log) {
+                            const isError = log.failed_count > 0;
+                            // 格式化时间显示，只显示月-日 时:分
+                            const date = new Date(log.created_at);
+                            const formattedTime = `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                            
+                            html += `
+                                <div class="log-item ${isError ? 'error' : 'success'}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <strong>${log.refresh_type}</strong>
+                                            <small class="text-muted d-block">${formattedTime}</small>
+                                        </div>
+                                        <span class="badge bg-${isError ? 'danger' : 'success'}">
+                                            ${log.success_count}/${log.connection_count}
+                                        </span>
+                                    </div>
+                                    ${log.error_message ? `<small class="text-danger d-block mt-1">${log.error_message.substring(0, 100)}</small>` : ''}
+                                </div>
+                            `;
+                        });
+                    }
+                    
+                    $('#refreshLogs').html(html);
+                }
+            },
+            error: function() {
+                // 静默处理错误
+            }
+        });
+    }
+
+    // 显示消息
+    function showMessage(message, type) {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        // 移除现有的alert
+        $('.alert').remove();
+        
+        // 添加新的alert到页面顶部
+        $('.container-fluid').prepend(alertHtml);
+        
+        // 3秒后自动消失
+        setTimeout(function() {
+            $('.alert').fadeOut();
+        }, 3000);
+    }
+
+    // 立即清理日志
+    $('#cleanupLogsBtn').click(function() {
+        const btn = $(this);
+        const originalHtml = btn.html();
+        const days = parseInt($('#logRetentionDays').val());
+        
+        if (days < 1 || days > 365) {
+            showMessage('日志保留天数必须在1-365之间', 'danger');
+            return;
+        }
+        
+        if (!confirm(`确定要清理 ${days} 天前的日志吗？此操作不可恢复！`)) {
+            return;
+        }
+        
+        btn.html('<i class="fas fa-spinner fa-spin me-2"></i>清理中...');
+        btn.prop('disabled', true);
+        
+        $.ajax({
+            url: '/dashboard/protocol-config/api/cleanup-logs/',
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            data: JSON.stringify({
+                days: days
+            }),
+            contentType: 'application/json',
+            success: function(response) {
+                if (response.code === 200) {
+                    showMessage(response.msg, 'success');
+                    loadRefreshLogs(); // 刷新日志列表
+                } else {
+                    showMessage(response.msg, 'danger');
+                }
+            },
+            error: function() {
+                showMessage('清理日志失败，请稍后重试', 'danger');
+            },
+            complete: function() {
+                btn.html(originalHtml);
+                btn.prop('disabled', false);
+            }
+        });
+    });
+
+    // 定期刷新日志
+    setInterval(loadRefreshLogs, 30000); // 每30秒刷新一次
+});
+</script>
+{% endblock %}

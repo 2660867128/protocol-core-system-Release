@@ -1,0 +1,22 @@
+name: protocol-core-system
+
+services:
+  protocol-core:
+    build: .
+    ports:
+      - "8000:8000"  # Django服务端口
+    volumes:
+      - ./data:/app/data
+      - ./media:/app/media
+      - ./logs:/app/logs
+      - ./staticfiles:/app/staticfiles
+    environment:
+      # Django配置
+      - DEBUG=False
+      - SECRET_KEY=your-production-secret-key-change-this-in-production
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,*
+      
+      # 时区配置
+      - TZ=Asia/Shanghai
+      
+    restart: unless-stopped

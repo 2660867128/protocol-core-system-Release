@@ -1,0 +1,1320 @@
+{% extends 'base.html' %}
+
+{% block title %}微信对话 - {{ connection.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        height: calc(100vh - 200px);
+        max-width: 1200px;
+        display: flex;
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    /* 用户列表样式 */
+    .user-list {
+        width: 300px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px 0 0 10px;
+        color: white;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .user-list-header {
+        padding: 15px 15px 10px 15px;
+        border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .header-info h6 {
+        color: white;
+        font-weight: 600;
+    }
+    
+    .header-info small {
+        color: rgba(255,255,255,0.8);
+        font-size: 0.75rem;
+    }
+    
+    /* 协议控制区域 */
+    .protocol-control-area {
+        padding: 12px 15px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.05);
+    }
+    
+    .user-list-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px 0;
+    }
+    
+    .user-item {
+        cursor: pointer;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 5px;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .user-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .user-item.active {
+        background-color: #e3f2fd;
+        border-left: 4px solid #2196f3;
+    }
+    
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+    
+    .user-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .user-name {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .user-id {
+        font-size: 0.8rem;
+        color: #666;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .chat-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chat-header {
+        padding: 20px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+    
+    .chat-title {
+        font-weight: bold;
+        color: #333;
+        margin: 0;
+    }
+    
+    .chat-subtitle {
+        font-size: 0.9rem;
+        color: #666;
+        margin: 0;
+    }
+    
+    .messages-container {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        background-color: #fafafa;
+    }
+    
+    .message-item {
+        margin-bottom: 15px;
+        display: flex;
+        align-items: flex-start;
+    }
+    
+    .message-left {
+        justify-content: flex-start;
+    }
+    
+    .message-right {
+        justify-content: flex-end;
+    }
+    
+    .message-bubble {
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        position: relative;
+        word-wrap: break-word;
+    }
+    
+    .message-left .message-bubble {
+        background-color: #ffffff;
+        color: #333;
+        border: 1px solid #e0e0e0;
+        margin-right: auto;
+    }
+    
+    .message-right .message-bubble {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        margin-left: auto;
+    }
+    
+    .message-sender {
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+        opacity: 0.8;
+    }
+    
+    .message-content {
+        line-height: 1.4;
+    }
+    
+    .message-time {
+        font-size: 0.75rem;
+        opacity: 0.6;
+        margin-top: 4px;
+    }
+    
+    .input-area {
+        padding: 20px;
+        border-top: 1px solid #e0e0e0;
+        background-color: #fff;
+    }
+    
+    .input-group {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+    }
+    
+    .message-input {
+        flex: 1;
+        min-height: 40px;
+        max-height: 120px;
+        padding: 10px 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 20px;
+        resize: none;
+        font-family: inherit;
+        font-size: 14px;
+        line-height: 1.4;
+        transition: border-color 0.3s ease;
+    }
+    
+    .message-input:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    .send-button {
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    
+    .send-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .send-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    /* 控制按钮样式 */
+    .control-buttons {
+        display: flex;
+        gap: 8px;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .control-btn {
+        flex: 1;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        min-width: 0;
+    }
+    
+    .btn-start {
+        background: rgba(40, 167, 69, 0.9);
+        color: white;
+        border: 1px solid rgba(40, 167, 69, 0.3);
+    }
+    
+    .btn-start:hover {
+        background: rgba(40, 167, 69, 1);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    }
+    
+    .btn-stop {
+        background: rgba(220, 53, 69, 0.9);
+        color: white;
+        border: 1px solid rgba(220, 53, 69, 0.3);
+        display: none;
+    }
+    
+    .btn-stop:hover {
+        background: rgba(220, 53, 69, 1);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+    }
+    
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 40px 20px;
+        color: rgba(255,255,255,0.7);
+        height: 100%;
+        min-height: 200px;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.3;
+    }
+    
+    .empty-state p {
+        margin: 0.5rem 0;
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+    
+    .empty-state small {
+        opacity: 0.6;
+        font-size: 0.9rem;
+    }
+    
+    /* 聊天区域的empty-state样式 */
+    .messages-container .empty-state {
+        color: #6c757d;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        margin: 20px;
+    }
+    
+    .loading {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255,255,255,.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    /* 协议切换样式 */
+    .protocol-switch {
+        margin-bottom: 12px;
+    }
+    
+    .protocol-switch .form-label {
+        color: white;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-bottom: 6px;
+        display: block;
+    }
+    
+    .protocol-switch .form-select {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.6rem;
+        border-radius: 6px;
+        background-color: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #333;
+        width: 100%;
+    }
+    
+    .protocol-switch .form-select:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        background-color: white;
+    }
+    
+    /* 连接状态指示 */
+    .connection-status {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-left: 5px;
+    }
+    
+    .connection-status.connected {
+        background-color: #28a745;
+        box-shadow: 0 0 4px rgba(40, 167, 69, 0.5);
+    }
+    
+    .connection-status.disconnected {
+        background-color: #dc3545;
+    }
+    
+    .connection-status.connecting {
+        background-color: #ffc107;
+        animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .chat-container {
+            height: calc(100vh - 120px);
+            flex-direction: column;
+        }
+        
+        .user-list {
+            width: 100%;
+            max-height: 200px;
+        }
+        
+        .user-item {
+            padding: 10px;
+        }
+        
+        .message-bubble {
+            max-width: 85%;
+        }
+        
+        .protocol-control-area {
+            padding: 10px 15px;
+        }
+        
+        .protocol-switch {
+            margin-bottom: 8px;
+        }
+        
+        .control-buttons {
+            gap: 6px;
+        }
+        
+        .control-btn {
+            font-size: 0.75rem;
+            padding: 6px 10px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="fas fa-comments me-2 text-primary"></i>微信对话
+            </h2>
+            <p class="text-muted mb-0">{{ connection.name }} - {{ connection.url }}</p>
+        </div>
+        <a href="{% url 'connection_detail' connection.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>返回详情
+        </a>
+    </div>
+
+    <!-- 聊天容器 -->
+    <div class="chat-container">
+        <!-- 用户列表 -->
+        <div class="user-list">
+            <div class="user-list-header">
+                <div class="header-info">
+                    <h6 class="mb-0">联系人</h6>
+                    <small class="opacity-75">{{ auth_code.code }}</small>
+                </div>
+            </div>
+            
+            <!-- 协议控制区域 -->
+            <div class="protocol-control-area">
+                <div class="protocol-switch">
+                    <label class="form-label">协议模式</label>
+                    <select id="protocolMode" class="form-select form-select-sm">
+                        <option value="http">HTTP轮询</option>
+                        <option value="websocket">WebSocket</option>
+                    </select>
+                </div>
+                <div class="control-buttons">
+                    <button id="startBtn" class="control-btn btn-start">
+                        <i class="fas fa-play me-1"></i>开始
+                    </button>
+                    <button id="stopBtn" class="control-btn btn-stop">
+                        <i class="fas fa-stop me-1"></i>停止
+                    </button>
+                </div>
+            </div>
+            <div class="user-list-body">
+                <div id="userList">
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <p>暂无联系人</p>
+                        <small>点击"开始"接收消息</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 聊天区域 -->
+        <div class="chat-area">
+            <div class="chat-header">
+                <div>
+                    <h5 class="chat-title" id="chatTitle">请选择联系人</h5>
+                    <p class="chat-subtitle" id="chatSubtitle">选择左侧联系人开始对话</p>
+                </div>
+            </div>
+            
+            <div class="messages-container" id="messagesContainer">
+                <div class="empty-state">
+                    <i class="fas fa-comment-dots"></i>
+                    <p>暂无消息</p>
+                    <small>选择联系人查看对话记录</small>
+                </div>
+            </div>
+            
+            <div class="input-area">
+                <div class="input-group">
+                    <textarea 
+                        id="messageInput" 
+                        class="message-input" 
+                        placeholder="输入消息..." 
+                        rows="1"
+                        disabled></textarea>
+                    <button id="sendButton" class="send-button" disabled>
+                        <i class="fas fa-paper-plane me-1"></i>发送
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 隐藏的数据 -->
+<script>
+    // 连接和授权码信息
+    const CONNECTION_ID = '{{ connection.pk }}';
+    const CONNECTION_URL = '{{ connection.url }}';
+    const AUTH_CODE = '{{ auth_code.code }}';
+    let currentChatUser = null;
+    let isReceiving = false;
+    let syncInterval = null;
+    const CHAT_API_BASE = `/dashboard/api/connections/${CONNECTION_ID}/chat/`;
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+{{ ... }}
+$(document).ready(function() {
+    let isReceiving = false;
+    let receiveInterval = null;
+    let currentChatUser = null;
+    let messageHistory = {}; // 所有消息历史，按用户分组
+    let processedMessageIds = new Set(); // 已处理的消息ID，用于去重
+    let websocket = null; // WebSocket连接
+    let currentProtocol = 'http'; // 当前协议模式
+    
+    // 控制按钮
+    const startBtn = $('#startBtn');
+    const stopBtn = $('#stopBtn');
+    const sendButton = $('#sendButton');
+    const messageInput = $('#messageInput');
+    const protocolMode = $('#protocolMode');
+    
+    // 协议模式切换
+    protocolMode.change(function() {
+        const newProtocol = $(this).val();
+        if (isReceiving && newProtocol !== currentProtocol) {
+            showMessage('请先停止接收消息再切换协议', 'warning');
+            $(this).val(currentProtocol); // 恢复原选择
+            return;
+        }
+        currentProtocol = newProtocol;
+        showMessage(`已切换到 ${newProtocol === 'http' ? 'HTTP轮询' : 'WebSocket'} 模式`, 'info');
+    });
+    
+    // 页面加载时获取历史消息
+    loadChatHistory();
+    
+    // 开始接收消息
+    startBtn.click(function() {
+        if (isReceiving) return;
+        
+        isReceiving = true;
+        startBtn.hide();
+        stopBtn.show();
+        protocolMode.prop('disabled', true); // 禁用协议切换
+        
+        if (currentProtocol === 'http') {
+            // HTTP轮询模式
+            receiveInterval = setInterval(fetchMessages, 1000);
+            showMessage('开始HTTP轮询接收消息...', 'info');
+        } else {
+            // WebSocket模式
+            connectWebSocket();
+            showMessage('正在建立WebSocket连接...', 'info');
+        }
+    });
+    
+    // 停止接收消息
+    stopBtn.click(function() {
+        if (!isReceiving) return;
+        
+        isReceiving = false;
+        stopBtn.hide();
+        startBtn.show();
+        protocolMode.prop('disabled', false); // 启用协议切换
+        
+        if (currentProtocol === 'http') {
+            // 停止HTTP轮询
+            if (receiveInterval) {
+                clearInterval(receiveInterval);
+                receiveInterval = null;
+            }
+            showMessage('已停止HTTP轮询', 'warning');
+        } else {
+            // 关闭WebSocket连接
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+            showMessage('已断开WebSocket连接', 'warning');
+        }
+    });
+    
+    // 发送消息
+    sendButton.click(sendMessage);
+    
+    // 回车发送消息
+    messageInput.keypress(function(e) {
+        if (e.which === 13 && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    // 自动调整输入框高度
+    messageInput.on('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+    
+    // 获取消息 - 直接调用协议API
+    function fetchMessages() {
+        // 添加防抖机制，避免重复请求
+        if (fetchMessages.requesting) {
+            return;
+        }
+        
+        fetchMessages.requesting = true;
+        
+        // 直接调用协议API，参考demo实现
+        $.ajax({
+            url: CONNECTION_URL + '/api/Msg/Sync',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify({
+                Scene: 0,
+                Synckey: "",
+                Wxid: AUTH_CODE
+            }),
+            success: function(response) {
+                console.log('协议API响应:', response);
+                
+                // 检查协议API响应格式
+                if (response.Success && response.Data && response.Data.AddMsgs) {
+                    const messages = response.Data.AddMsgs;
+                    console.log('协议API获取到新消息:', messages.length, '条');
+                    
+                    // 转换协议API消息格式为前端期望格式
+                    const convertedMessages = messages.map(function(msg) {
+                        return {
+                            NewMsgId: msg.NewMsgId,
+                            Content: typeof msg.Content === 'object' ? msg.Content.string : msg.Content,
+                            FromUserName: typeof msg.FromUserName === 'object' ? msg.FromUserName.string : msg.FromUserName,
+                            ToUserName: typeof msg.ToUserName === 'object' ? msg.ToUserName.string : msg.ToUserName,
+                            PushContent: msg.PushContent || '',
+                            CreateTime: Math.floor(Date.now() / 1000)
+                        };
+                    });
+                    
+                    processMessages(convertedMessages);
+                } else {
+                    console.log('协议API: 暂无新消息');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('协议API请求失败:', error);
+                console.error('状态码:', xhr.status);
+                console.error('响应内容:', xhr.responseText);
+                
+                // 协议API请求失败时的处理
+                if (xhr.status === 0) {
+                    showMessage('无法连接到协议服务器，请检查协议地址', 'danger');
+                } else if (xhr.status === 404) {
+                    showMessage('协议API不存在，请检查协议版本', 'warning');
+                } else {
+                    showMessage('协议API请求失败: ' + error, 'warning');
+                }
+            },
+            complete: function() {
+                fetchMessages.requesting = false;
+            }
+        });
+    }
+    
+    // 处理消息数据
+    function processMessages(messages) {
+        let hasNewMessage = false;
+        let newMessagesForDB = []; // 收集需要保存到数据库的新消息
+        
+        messages.forEach(function(msg) {
+            // 处理协议服务器的消息格式
+            let msgId, content, fromUser, toUser, pushContent;
+            
+            if (msg.NewMsgId) {
+                // 标准格式
+                msgId = msg.NewMsgId;
+                content = msg.Content;
+                fromUser = msg.FromUserName;
+                toUser = msg.ToUserName;
+                pushContent = msg.PushContent || '';
+            } else if (msg.NewMsgId && typeof msg.Content === 'object') {
+                // demo中的格式：字段可能是对象
+                msgId = msg.NewMsgId;
+                content = msg.Content.string || msg.Content;
+                fromUser = msg.FromUserName.string || msg.FromUserName;
+                toUser = msg.ToUserName.string || msg.ToUserName;
+                pushContent = msg.PushContent || '';
+            } else {
+                console.log('未知的消息格式:', msg);
+                return;
+            }
+            
+            // 检查消息是否已经处理过（去重）
+            if (processedMessageIds.has(msgId)) {
+                return; // 跳过已处理的消息
+            }
+            
+            // 标记消息为已处理
+            processedMessageIds.add(msgId);
+            hasNewMessage = true;
+            
+            // 确定聊天对象
+            let chatUser;
+            if (fromUser === AUTH_CODE) {
+                chatUser = toUser;
+            } else {
+                chatUser = fromUser;
+            }
+            
+            // 初始化消息历史
+            if (!messageHistory[chatUser]) {
+                messageHistory[chatUser] = [];
+            }
+            
+            // 添加消息到历史
+            const messageData = {
+                id: msgId,
+                content: content,
+                fromUser: fromUser,
+                toUser: toUser,
+                pushContent: pushContent,
+                timestamp: new Date()
+            };
+            
+            messageHistory[chatUser].push(messageData);
+            
+            // 收集消息用于批量保存
+            newMessagesForDB.push(messageData);
+        });
+        
+        // 批量保存所有新消息到数据库
+        if (newMessagesForDB.length > 0) {
+            batchSaveMessagesToDatabase(newMessagesForDB);
+        }
+        
+        // 只有在有新消息时才更新界面
+        if (hasNewMessage) {
+            updateUserList();
+            
+            // 如果当前选中的聊天用户有新消息，立即渲染
+            if (currentChatUser) {
+                renderMessages(currentChatUser);
+            }
+            
+            console.log('处理了新消息，当前消息历史:', messageHistory);
+        }
+    }
+    
+    // 更新用户列表
+    function updateUserList() {
+        const userList = $('#userList');
+        const users = Object.keys(messageHistory).filter(key => key !== AUTH_CODE);
+        
+        if (users.length === 0) {
+            userList.html(`
+                <div class="empty-state">
+                    <i class="fas fa-users"></i>
+                    <p>暂无联系人</p>
+                    <small>等待接收消息...</small>
+                </div>
+            `);
+            return;
+        }
+        
+        let html = '';
+        users.forEach(function(userId) {
+            const messages = messageHistory[userId];
+            const lastMessage = messages[messages.length - 1];
+            const displayName = lastMessage.pushContent || userId;
+            const isActive = currentChatUser === userId ? 'active' : '';
+            
+            html += `
+                <div class="user-item ${isActive}" data-user-id="${userId}">
+                    <div class="user-avatar">
+                        ${displayName.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name">${displayName}</div>
+                        <div class="user-id">${userId}</div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        userList.html(html);
+        
+        // 绑定点击事件
+        userList.find('.user-item').click(function() {
+            const userId = $(this).data('user-id');
+            selectUser(userId);
+        });
+        
+        // 如果没有选中用户，自动选中第一个
+        if (!currentChatUser && users.length > 0) {
+            selectUser(users[0]);
+        }
+    }
+    
+    // 选择用户
+    function selectUser(userId) {
+        currentChatUser = userId;
+        
+        // 更新UI状态
+        $('.user-item').removeClass('active');
+        $(`.user-item[data-user-id="${userId}"]`).addClass('active');
+        
+        // 启用输入
+        messageInput.prop('disabled', false);
+        sendButton.prop('disabled', false);
+        
+        // 更新聊天标题
+        const messages = messageHistory[userId];
+        const displayName = messages && messages.length > 0 ? 
+            (messages[0].pushContent || userId) : userId;
+        
+        $('#chatTitle').text(displayName);
+        $('#chatSubtitle').text(userId);
+        
+        // 渲染消息
+        renderMessages(userId);
+    }
+    
+    // 渲染消息
+    function renderMessages(userId) {
+        const container = $('#messagesContainer');
+        const messages = messageHistory[userId] || [];
+        
+        if (messages.length === 0) {
+            container.html(`
+                <div class="empty-state">
+                    <i class="fas fa-comment-dots"></i>
+                    <p>暂无消息</p>
+                    <small>开始对话吧</small>
+                </div>
+            `);
+            return;
+        }
+        
+        let html = '';
+        messages.forEach(function(msg) {
+            const isFromMe = msg.fromUser === AUTH_CODE;
+            const messageClass = isFromMe ? 'message-right' : 'message-left';
+            const senderName = isFromMe ? '我' : (msg.pushContent || msg.fromUser);
+            
+            html += `
+                <div class="message-item ${messageClass}">
+                    <div class="message-bubble">
+                        ${!isFromMe ? `<div class="message-sender">${senderName}</div>` : ''}
+                        <div class="message-content">${msg.content}</div>
+                        <div class="message-time">${formatTime(msg.timestamp)}</div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.html(html);
+        
+        // 滚动到底部
+        container.scrollTop(container[0].scrollHeight);
+    }
+    
+    // 发送消息
+    function sendMessage() {
+        if (!currentChatUser) {
+            showMessage('请先选择联系人', 'warning');
+            return;
+        }
+        
+        const content = messageInput.val().trim();
+        if (!content) {
+            showMessage('请输入消息内容', 'warning');
+            return;
+        }
+        
+        // 显示发送状态
+        sendButton.prop('disabled', true);
+        sendButton.html('<span class="loading"></span> 发送中...');
+        
+        // 根据当前协议选择发送方式
+        if (currentProtocol === 'websocket' && websocket && websocket.readyState === WebSocket.OPEN) {
+            // WebSocket发送
+            if (sendMessageViaWebSocket(content, currentChatUser)) {
+                // WebSocket发送成功，立即添加到界面
+                addMessageToHistory(content, AUTH_CODE, currentChatUser);
+                
+                // 清空输入框
+                messageInput.val('');
+                messageInput.css('height', 'auto');
+                
+                showMessage('消息发送成功 (WebSocket)', 'success');
+                
+                // 恢复按钮状态
+                sendButton.prop('disabled', false);
+                sendButton.html('<i class="fas fa-paper-plane me-1"></i>发送');
+            } else {
+                // WebSocket发送失败，降级到HTTP
+                showMessage('WebSocket发送失败，尝试HTTP发送', 'warning');
+                sendMessageViaHttp(content);
+            }
+        } else {
+            // HTTP发送
+            sendMessageViaHttp(content);
+        }
+    }
+    
+    // HTTP方式发送消息 - 直接调用协议API
+    function sendMessageViaHttp(content) {
+        $.ajax({
+            url: CONNECTION_URL + '/api/Msg/SendTxt',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify({
+                Wxid: AUTH_CODE,
+                ToWxid: currentChatUser,
+                Content: content,
+                At: "",
+                Type: 0
+            }),
+            success: function(response) {
+                console.log('协议API发送响应:', response);
+                
+                if (response.Success) {
+                    // 添加到消息历史
+                    addMessageToHistory(content, AUTH_CODE, currentChatUser);
+                    
+                    // 清空输入框
+                    messageInput.val('');
+                    messageInput.css('height', 'auto');
+                    
+                    showMessage('消息发送成功 (协议API)', 'success');
+                } else {
+                    showMessage('发送失败: ' + (response.Message || '协议返回失败'), 'danger');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('协议API发送失败:', error);
+                console.error('状态码:', xhr.status);
+                console.error('响应内容:', xhr.responseText);
+                
+                if (xhr.status === 0) {
+                    showMessage('无法连接到协议服务器', 'danger');
+                } else {
+                    showMessage('发送失败: ' + error, 'danger');
+                }
+            },
+            complete: function() {
+                // 恢复按钮状态
+                sendButton.prop('disabled', false);
+                sendButton.html('<i class="fas fa-paper-plane me-1"></i>发送');
+            }
+        });
+    }
+    
+    // 添加消息到历史记录
+    function addMessageToHistory(content, fromUser, toUser) {
+        // 生成唯一的消息ID
+        const msgId = Date.now() + Math.random();
+        
+        // 检查是否已存在该消息（避免重复）
+        if (!processedMessageIds.has(msgId)) {
+            processedMessageIds.add(msgId);
+            
+            const chatKey = fromUser === AUTH_CODE ? toUser : fromUser;
+            
+            // 添加到消息历史
+            if (!messageHistory[chatKey]) {
+                messageHistory[chatKey] = [];
+            }
+            
+            messageHistory[chatKey].push({
+                content: content,
+                fromUser: fromUser,
+                toUser: toUser,
+                pushContent: '',
+                msgId: msgId,
+                timestamp: new Date()
+            });
+            
+            // 重新渲染消息
+            renderMessages(chatKey);
+            updateUserList();
+        }
+    }
+    
+    // 格式化时间
+    function formatTime(date) {
+        const now = new Date();
+        const diff = now - date;
+        
+        if (diff < 60000) { // 1分钟内
+            return '刚刚';
+        } else if (diff < 3600000) { // 1小时内
+            return Math.floor(diff / 60000) + '分钟前';
+        } else if (diff < 86400000) { // 1天内
+            return Math.floor(diff / 3600000) + '小时前';
+        } else {
+            return date.toLocaleString();
+        }
+    }
+    
+    // WebSocket连接函数
+    function connectWebSocket() {
+        try {
+            // 构建WebSocket URL - 直接连接到协议服务器的WebSocket
+            const connectionUrl = CONNECTION_URL; // 协议服务器地址，如 http://8.148.209.203:8057
+            const wsUrl = connectionUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+            const wsEndpoint = `${wsUrl}/ws?wxid=${AUTH_CODE}`;
+            
+            console.log('尝试连接WebSocket:', wsEndpoint);
+            websocket = new WebSocket(wsEndpoint);
+            
+            websocket.onopen = function(event) {
+                console.log('WebSocket连接已建立');
+                showMessage('WebSocket连接成功！', 'success');
+            };
+            
+            websocket.onmessage = function(event) {
+                try {
+                    console.log('WebSocket收到原始消息:', event.data);
+                    
+                    // 协议服务器的WebSocket可能直接发送消息数据
+                    // 需要根据实际协议服务器的WebSocket格式来处理
+                    let data;
+                    try {
+                        data = JSON.parse(event.data);
+                    } catch (e) {
+                        // 如果不是JSON，可能是纯文本消息
+                        console.log('WebSocket收到文本消息:', event.data);
+                        return;
+                    }
+                    
+                    // 处理协议服务器的消息格式
+                    if (data.Data && data.Data.AddMsgs) {
+                        // 类似demo中的消息格式
+                        processMessages(data.Data.AddMsgs);
+                    } else if (data.AddMsgs) {
+                        // 直接的消息数组
+                        processMessages(data.AddMsgs);
+                    } else if (Array.isArray(data)) {
+                        // 消息数组
+                        processMessages(data);
+                    } else {
+                        console.log('未知的WebSocket消息格式:', data);
+                    }
+                } catch (error) {
+                    console.error('WebSocket消息处理失败:', error);
+                }
+            };
+            
+            websocket.onerror = function(error) {
+                console.error('WebSocket错误:', error);
+                showMessage('WebSocket连接出错，降级到HTTP轮询', 'danger');
+                
+                // 自动降级到HTTP轮询
+                fallbackToHttp();
+            };
+            
+            websocket.onclose = function(event) {
+                console.log('WebSocket连接已关闭，代码:', event.code, '原因:', event.reason);
+                if (isReceiving) {
+                    if (event.code === 1006) {
+                        showMessage('WebSocket服务不可用，降级到HTTP轮询', 'warning');
+                    } else {
+                        showMessage('WebSocket连接断开，降级到HTTP轮询', 'warning');
+                    }
+                    fallbackToHttp();
+                }
+            };
+            
+        } catch (error) {
+            console.error('WebSocket连接失败:', error);
+            showMessage('WebSocket不支持，降级到HTTP轮询', 'warning');
+            fallbackToHttp();
+        }
+    }
+    
+    // 降级到HTTP轮询
+    function fallbackToHttp() {
+        if (!isReceiving) return;
+        
+        // 清理WebSocket
+        if (websocket) {
+            websocket.close();
+            websocket = null;
+        }
+        
+        // 切换到HTTP模式
+        currentProtocol = 'http';
+        protocolMode.val('http');
+        
+        // 开始HTTP轮询
+        receiveInterval = setInterval(fetchMessages, 1000);
+        showMessage('已切换到HTTP轮询模式', 'info');
+    }
+    
+    // WebSocket发送消息
+    function sendMessageViaWebSocket(content, toWxid) {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            // 协议服务器的WebSocket可能不支持直接发送消息
+            // 或者需要特定的格式，这里先记录日志
+            console.log('尝试通过WebSocket发送消息:', content, 'to:', toWxid);
+            
+            // 如果协议服务器支持WebSocket发送，使用类似的格式
+            const message = {
+                Wxid: AUTH_CODE,
+                ToWxid: toWxid,
+                Content: content,
+                At: "",
+                Type: 0
+            };
+            
+            try {
+                websocket.send(JSON.stringify(message));
+                console.log('WebSocket消息已发送');
+                return true;
+            } catch (error) {
+                console.error('WebSocket发送失败:', error);
+                return false;
+            }
+        }
+        return false;
+    }
+    
+    // 加载聊天历史记录
+    function loadChatHistory() {
+        $.ajax({
+            url: CHAT_API_BASE + 'history/',
+            method: 'GET',
+            data: {
+                wxid: AUTH_CODE
+            },
+            success: function(response) {
+                if (response.code === 200 && response.data) {
+                    // 将历史消息加载到messageHistory
+                    const historyData = response.data;
+                    
+                    for (const partnerId in historyData) {
+                        const sessionData = historyData[partnerId];
+                        const messages = sessionData.messages;
+                        
+                        // 保存现有的新消息（如果有的话）
+                        const existingMessages = messageHistory[partnerId] || [];
+                        const existingNewMessages = existingMessages.filter(msg => 
+                            !processedMessageIds.has(msg.id) || 
+                            msg.timestamp > new Date(Date.now() - 60000) // 最近1分钟的消息
+                        );
+                        
+                        // 重新初始化消息历史
+                        messageHistory[partnerId] = [];
+                        
+                        // 添加历史消息
+                        messages.forEach(function(msg) {
+                            // 标记消息为已处理
+                            processedMessageIds.add(msg.id);
+                            
+                            messageHistory[partnerId].push({
+                                id: msg.id,
+                                content: msg.content,
+                                fromUser: msg.fromUser,
+                                toUser: msg.toUser,
+                                pushContent: msg.pushContent,
+                                timestamp: new Date(msg.timestamp)
+                            });
+                        });
+                        
+                        // 合并现有的新消息（按时间排序）
+                        existingNewMessages.forEach(function(msg) {
+                            // 检查是否已经存在（避免重复）
+                            const exists = messageHistory[partnerId].some(existingMsg => existingMsg.id === msg.id);
+                            if (!exists) {
+                                messageHistory[partnerId].push(msg);
+                            }
+                        });
+                        
+                        // 按时间排序所有消息
+                        messageHistory[partnerId].sort(function(a, b) {
+                            return new Date(a.timestamp) - new Date(b.timestamp);
+                        });
+                    }
+                    
+                    // 更新用户列表
+                    updateUserList();
+                    
+                    // 如果当前有选中的聊天用户，重新渲染消息
+                    if (currentChatUser && messageHistory[currentChatUser]) {
+                        renderMessages(currentChatUser);
+                    }
+                    
+                    console.log('历史消息加载成功，共', Object.keys(messageHistory).length, '个会话');
+                    console.log('消息详情:', messageHistory);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('加载历史消息失败:', error);
+            }
+        });
+    }
+    
+    // 批量保存消息到数据库
+    function batchSaveMessagesToDatabase(messagesArray) {
+        if (!messagesArray || messagesArray.length === 0) {
+            return;
+        }
+        
+        console.log(`批量保存 ${messagesArray.length} 条消息到数据库`);
+        
+        // 构建同步消息的数据格式
+        const syncData = messagesArray.map(function(messageData) {
+            return {
+                NewMsgId: messageData.id,
+                Content: messageData.content,
+                FromUserName: messageData.fromUser,
+                ToUserName: messageData.toUser,
+                PushContent: messageData.pushContent || '',
+                CreateTime: Math.floor(messageData.timestamp.getTime() / 1000)
+            };
+        });
+        
+        // 调用消息同步API批量保存到数据库
+        $.ajax({
+            url: `/dashboard/api/connections/${CONNECTION_ID}/chat/sync/`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            data: JSON.stringify({
+                wxid: AUTH_CODE,
+                messages: syncData
+            }),
+            success: function(response) {
+                console.log(`批量保存成功: ${messagesArray.length} 条消息`, response);
+            },
+            error: function(xhr, status, error) {
+                console.error(`批量保存失败: ${messagesArray.length} 条消息`, error);
+                console.error('状态码:', xhr.status);
+                console.error('响应内容:', xhr.responseText);
+                
+                // 如果是429错误，说明仍然请求过于频繁
+                if (xhr.status === 429) {
+                    console.warn('批量保存仍然触发429错误，可能需要进一步优化');
+                }
+                
+                // 保存失败不影响用户体验，只记录日志
+            }
+        });
+    }
+    
+    // 保留单条保存函数用于兼容性（发送消息时使用）
+    function saveMessageToDatabase(messageData) {
+        batchSaveMessagesToDatabase([messageData]);
+    }
+    
+    // 显示消息提示
+    function showMessage(message, type) {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        $('body').append(alertHtml);
+        
+        // 3秒后自动消失
+        setTimeout(function() {
+            $('.alert').fadeOut();
+        }, 3000);
+    }
+});
+</script>
+{% endblock %}
