@@ -152,3 +152,4 @@ logs/
 *.pid
 
 加密/
+backups/

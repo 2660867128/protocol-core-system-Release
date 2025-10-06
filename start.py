@@ -9,7 +9,17 @@ import sys
 import subprocess
 import platform
 import importlib.util
+import signal
+import time
 from pathlib import Path
+
+# psutil作为可选依赖
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+    psutil = None
 
 # 全局标志，防止重复执行
 _SCRIPT_EXECUTED = False
@@ -33,6 +43,84 @@ except ImportError:
         }
         def validate_config():
             return []
+
+def install_package(package_name, import_name=None):
+    """自动安装Python包"""
+    if import_name is None:
+        import_name = package_name
+    
+    try:
+        __import__(import_name)
+        return True
+    except ImportError:
+        print(f"⚠️ 缺少依赖包: {package_name}")
+        print(f"📦 正在自动安装 {package_name}...")
+        
+        try:
+            # 尝试使用pip安装
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', package_name])
+            print(f"✅ {package_name} 安装成功")
+            
+            # 重新尝试导入
+            __import__(import_name)
+            return True
+            
+        except subprocess.CalledProcessError as e:
+            print(f"❌ {package_name} 安装失败: {e}")
+            return False
+        except ImportError:
+            print(f"❌ {package_name} 安装后仍无法导入")
+            return False
+        except Exception as e:
+            print(f"❌ 安装 {package_name} 时发生错误: {e}")
+            return False
+
+def check_and_install_dependencies():
+    """检查并安装依赖"""
+    print("🔍 检查系统依赖...")
+    
+    # 必需依赖列表
+    required_packages = [
+        ('django', 'django'),
+        ('requests', 'requests'),
+    ]
+    
+    # 可选依赖列表（用于增强功能）
+    optional_packages = [
+        ('psutil', 'psutil'),  # 用于进程管理
+        ('pillow', 'PIL'),     # 用于图像处理
+    ]
+    
+    # 检查必需依赖
+    missing_required = []
+    for package_name, import_name in required_packages:
+        if not install_package(package_name, import_name):
+            missing_required.append(package_name)
+    
+    if missing_required:
+        print(f"❌ 缺少必需依赖: {', '.join(missing_required)}")
+        print("请手动安装缺少的依赖包")
+        return False
+    
+    # 检查可选依赖
+    print("🔍 检查可选依赖...")
+    global PSUTIL_AVAILABLE, psutil
+    
+    for package_name, import_name in optional_packages:
+        if install_package(package_name, import_name):
+            print(f"✅ {package_name} 可用")
+            # 特殊处理psutil的重新导入
+            if package_name == 'psutil':
+                try:
+                    import psutil
+                    PSUTIL_AVAILABLE = True
+                except ImportError:
+                    PSUTIL_AVAILABLE = False
+        else:
+            print(f"⚠️ {package_name} 不可用，部分功能可能受限")
+    
+    print("✅ 依赖检查完成")
+    return True
 
 def check_python_version():
     """检查Python版本"""
@@ -512,14 +600,109 @@ def docker_main():
         print("🌐 使用标准HTTP服务器")
         start_django_server()
 
+def handle_restart():
+    """处理系统重启"""
+    print("🔄 正在重启系统...")
+    
+    # 获取当前进程的PID
+    current_pid = os.getpid()
+    print(f"🔍 当前PID: {current_pid}")
+    
+    # 查找占用端口的进程
+    port = SERVER_CONFIG.get('PORT', 8000)
+    print(f"🔍 查找占用端口 {port} 的进程...")
+    
+    if PSUTIL_AVAILABLE:
+        # 使用psutil查找占用端口的进程
+        try:
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    for conn in proc.connections(kind='inet'):
+                        if conn.laddr.port == port:
+                            print(f"🔍 找到占用端口的进程: PID {proc.pid}")
+                            if proc.pid != current_pid:
+                                print(f"💪 终止进程 {proc.pid}")
+                                proc.terminate()
+                                # 等待进程终止
+                                try:
+                                    proc.wait(timeout=5)
+                                except psutil.TimeoutExpired:
+                                    print(f"⚠️ 强制终止进程 {proc.pid}")
+                                    proc.kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
+        except Exception as e:
+            print(f"⚠️ psutil查找进程失败: {e}")
+    else:
+        # 如果没有psutil，使用系统命令
+        print("⚠️ psutil不可用，使用系统命令查找进程")
+        try:
+            if platform.system() == "Linux":
+                # 使用lsof查找占用端口的进程
+                result = subprocess.run(['lsof', '-ti', f':{port}'], capture_output=True, text=True)
+                if result.stdout.strip():
+                    pids = result.stdout.strip().split('\n')
+                    for pid in pids:
+                        if pid.strip() and pid != str(current_pid):
+                            print(f"💪 终止进程 {pid}")
+                            try:
+                                subprocess.run(['kill', pid.strip()], check=True)
+                            except subprocess.CalledProcessError:
+                                # 如果kill失败，尝试强制终止
+                                subprocess.run(['kill', '-9', pid.strip()], check=False)
+            elif platform.system() == "Windows":
+                # Windows系统使用netstat和taskkill
+                result = subprocess.run(['netstat', '-ano'], capture_output=True, text=True)
+                for line in result.stdout.split('\n'):
+                    if f':{port}' in line and 'LISTENING' in line:
+                        parts = line.split()
+                        if len(parts) > 4:
+                            pid = parts[-1]
+                            if pid != str(current_pid):
+                                print(f"💪 终止进程 {pid}")
+                                subprocess.run(['taskkill', '/F', '/PID', pid], check=False)
+        except Exception as e:
+            print(f"⚠️ 使用系统命令终止进程失败: {e}")
+    
+    # 等待端口释放
+    print("⏳ 等待端口释放...")
+    time.sleep(3)
+    
+    # 重新启动
+    print("🚀 重新启动系统...")
+    python_executable = sys.executable
+    script_path = os.path.abspath(__file__)
+    
+    # 使用新进程启动（不传递--restart参数避免递归）
+    subprocess.Popen([python_executable, script_path], 
+                    cwd=os.path.dirname(script_path),
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL)
+    
+    print("✅ 重启命令已发送，当前进程即将退出")
+    time.sleep(1)
+    
+    # 退出当前进程
+    os._exit(0)
+
 def main():
     """主函数"""
     global _SCRIPT_EXECUTED
     
-    # 防止重复执行（Django reloader 会导致重复加载）
+    # 检查是否是重启模式
+    if len(sys.argv) > 1 and sys.argv[1] == '--restart':
+        handle_restart()
+        return
+    
     if _SCRIPT_EXECUTED:
         return
     _SCRIPT_EXECUTED = True
+    
+    # 检查并安装依赖
+    if not check_and_install_dependencies():
+        print("❌ 依赖检查失败，无法启动系统")
+        return
     
     # 检查是否在Docker环境中
     if is_docker_environment():
