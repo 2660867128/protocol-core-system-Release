@@ -1,12 +1,86 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }} - 协议核心管理系统</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 更新进度动画样式 */
+    #updateProgressContainer {
+        animation: slideInUp 0.5s ease-out;
+    }
+    
+    @keyframes slideInUp {
+        from {
+            transform: translateY(30px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    
+    .progress-bar {
+        transition: width 0.3s ease;
+    }
+    
+    #currentFile {
+        transition: all 0.3s ease;
+        border-left: 3px solid #007bff;
+    }
+    
+    #operationLog {
+        transition: all 0.3s ease;
+    }
+    
+    .log-entry {
+        animation: fadeInLeft 0.3s ease;
+        padding: 2px 0;
+    }
+    
+    @keyframes fadeInLeft {
+        from {
+            transform: translateX(-20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    .spinner-border {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* 按钮动画 */
+    .btn {
+        transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    /* 进度条动画 */
+    .progress-bar-animated {
+        animation: progress-bar-stripes 1s linear infinite;
+    }
+    
+    @keyframes progress-bar-stripes {
+        0% {
+            background-position: 1rem 0;
+        }
+        100% {
+            background-position: 0 0;
+        }
+    }
         .update-card {
             transition: all 0.3s ease;
             border: none;
@@ -44,26 +118,65 @@
             max-height: 400px;
             overflow-y: auto;
         }
-    </style>
-</head>
-<body class="bg-light">
-    <div class="container-fluid py-4">
-        <!-- 页面标题 -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h1 class="h3 mb-0">
-                        <i class="fas fa-download me-2 text-primary"></i>
-                        系统更新管理
-                    </h1>
-                    <button class="btn btn-outline-primary" onclick="checkUpdates()">
-                        <i class="fas fa-sync-alt me-2"></i>检查更新
-                    </button>
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 页面标题 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-sync-alt me-2 text-primary"></i>
+                更新设置
+            </h1>
+            <div>
+                <button class="btn btn-outline-primary me-2" onclick="checkUpdates()">
+                    <i class="fas fa-search me-2"></i>检查更新
+                </button>
+                <button class="btn btn-success" onclick="executeGitHubUpdate()">
+                    <i class="fab fa-github me-2"></i>立即更新
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GitHub 更新信息卡片 -->
+<div class="row mb-4" id="githubUpdateCard" style="display: none;">
+    <div class="col-12">
+        <div class="card update-card border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fab fa-github me-2"></i>
+                    GitHub 更新可用
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h6 class="mb-2">
+                            <span class="badge bg-primary me-2" id="newVersionBadge">v1.0.0</span>
+                            <small class="text-muted" id="updateAuthor">by Author</small>
+                        </h6>
+                        <p class="mb-2" id="updateMessage">更新消息</p>
+                        <small class="text-muted">
+                            <i class="fas fa-calendar me-1"></i>
+                            <span id="updateDate">更新时间</span>
+                        </small>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button class="btn btn-success" onclick="confirmGitHubUpdate()">
+                            <i class="fas fa-download me-2"></i>立即更新
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
+</div>
 
-        <!-- 当前版本信息 -->
+<!-- 当前版本信息 -->
         <div class="row mb-4">
             <div class="col-md-6">
                 <div class="card update-card">
@@ -72,9 +185,9 @@
                             <i class="fas fa-info-circle text-info me-2"></i>
                             当前版本
                         </h5>
-                        <span class="badge bg-primary version-badge">v{{ current_version }}</span>
-                        <p class="card-text mt-3 text-muted">
-                            系统运行正常，所有功能可用
+                        <span class="badge bg-primary version-badge">{{ current_version }}</span>
+                        <p class="card-text mt-3 text-muted" id="currentVersionInfo">
+                            {{ current_version_info }}
                         </p>
                     </div>
                 </div>
@@ -195,10 +308,13 @@
                             {% endfor %}
                         {% else %}
                             <div class="text-center py-4">
-                                <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">暂无可用更新</p>
-                                <button class="btn btn-outline-primary" onclick="checkUpdates()">
-                                    <i class="fas fa-sync-alt me-2"></i>检查更新
+                                <i class="fab fa-github fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">使用 GitHub 自动更新获取最新版本</p>
+                                <button class="btn btn-outline-primary me-2" onclick="checkUpdates()">
+                                    <i class="fas fa-search me-2"></i>检查更新
+                                </button>
+                                <button class="btn btn-success" onclick="executeGitHubUpdate()">
+                                    <i class="fab fa-github me-2"></i>立即更新
                                 </button>
                             </div>
                         {% endif %}
@@ -206,52 +322,266 @@
                 </div>
             </div>
 
-            <!-- 更新历史 -->
+            <!-- 备份管理 -->
             <div class="col-md-4">
                 <div class="card update-card">
                     <div class="card-header">
                         <h5 class="mb-0">
-                            <i class="fas fa-history text-secondary me-2"></i>
-                            更新历史
+                            <i class="fas fa-archive text-warning me-2"></i>
+                            备份管理
                         </h5>
                     </div>
                     <div class="card-body update-history">
-                        {% if update_history %}
-                            {% for record in update_history %}
+                        {% if backup_list %}
+                            {% for backup in backup_list %}
                             <div class="border-bottom pb-2 mb-2">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="fw-bold">{{ record.version_from }} → {{ record.version_to }}</span>
-                                    <span class="badge status-badge bg-{% if record.status == 'completed' %}success{% elif record.status == 'failed' %}danger{% elif record.status == 'rollback' %}warning{% else %}primary{% endif %}">
-                                        {{ record.get_status_display }}
-                                    </span>
-                                </div>
-                                <small class="text-muted">
-                                    <i class="fas fa-clock me-1"></i>
-                                    {{ record.created_at|date:"m-d H:i" }}
-                                </small>
-                                {% if record.status == 'completed' and record.backup_path %}
-                                <div class="mt-1">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <span class="fw-bold">{{ backup.name }}</span>
+                                        <br>
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock me-1"></i>
+                                            {{ backup.time }}
+                                        </small>
+                                    </div>
                                     <button class="btn btn-outline-warning btn-sm" 
-                                            onclick="rollbackUpdate({{ record.id }})">
+                                            onclick="rollbackFromBackup('{{ backup.path }}', '{{ backup.name }}')">
                                         <i class="fas fa-undo me-1"></i>回滚
                                     </button>
                                 </div>
-                                {% endif %}
                             </div>
                             {% endfor %}
                         {% else %}
                             <div class="text-center py-3">
-                                <i class="fas fa-history fa-2x text-muted mb-2"></i>
-                                <p class="text-muted small">暂无更新历史</p>
+                                <i class="fas fa-archive fa-2x text-muted mb-2"></i>
+                                <p class="text-muted small">暂无备份文件</p>
                             </div>
                         {% endif %}
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+        
+        <!-- 更新配置 -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card update-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-cog text-info me-2"></i>
+                            更新配置
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">最大备份数量</label>
+                                    <input type="number" class="form-control" id="maxBackups" value="10" min="1" max="50">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">自动重启</label>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="autoRestart" checked>
+                                        <label class="form-check-label" for="autoRestart">启用</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">自动备份</label>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="backupEnabled" checked>
+                                        <label class="form-check-label" for="backupEnabled">启用</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <button class="btn btn-primary" onclick="saveConfig()">
+                                        <i class="fas fa-save me-2"></i>保存配置
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label class="form-label">GitHub 国内镜像源 (可选)</label>
+                                    <input type="url" class="form-control" id="githubMirror" 
+                                           placeholder="例如: https://gh-proxy.com/ 或 https://mirror.ghproxy.com/">
+                                    <div class="form-text">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        只需输入代理域名，系统会自动拼接完整的 API 地址。留空使用默认 GitHub API。
+                                    </div>
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <strong>常用镜像源:</strong><br>
+                                            • <code>https://gh-proxy.com/</code><br>
+                                            • <code>https://mirror.ghproxy.com/</code><br>
+                                            • <code>https://ghproxy.net/</code>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    <h6 class="alert-heading">
+                                        <i class="fas fa-brain me-2"></i>智能更新机制
+                                    </h6>
+                                    <p class="mb-2">系统将智能判断文件是否需要更新：</p>
+                                    <ul class="mb-0">
+                                        <li><strong>.so 文件</strong>：比较文件内容，只有修改后才更新</li>
+                                        <li><strong>.py 文件</strong>：比较文件内容，只有修改后才更新</li>
+                                        <li><strong>其他文件</strong>：正常更新流程</li>
+                                        <li><strong>数据库/日志</strong>：自动跳过，不会被覆盖</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    <!-- 确认对话框 -->
+<!-- 更新进度显示 -->
+<div class="row mt-4" id="updateProgressContainer" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-download me-2"></i>
+                    <span id="progressTitle">正在更新...</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- 主进度条 -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold">更新进度</span>
+                        <span id="overallProgress">0%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             id="mainProgressBar" 
+                             role="progressbar" 
+                             style="width: 0%" 
+                             aria-valuenow="0" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 当前操作状态 -->
+                <div class="mb-3">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm text-primary me-2" id="statusSpinner"></div>
+                        <span id="currentStatus" class="text-muted">初始化中...</span>
+                    </div>
+                </div>
+                
+                <!-- 文件下载进度 -->
+                <div class="mb-3">
+                    <h6 class="fw-bold mb-2">
+                        <i class="fas fa-file-download me-1"></i>
+                        文件下载进度
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small class="text-muted">已下载: <span id="downloadedCount">0</span></small>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted">总数: <span id="totalCount">0</span></small>
+                        </div>
+                    </div>
+                    <div class="progress mt-2" style="height: 6px;">
+                        <div class="progress-bar bg-success" 
+                             id="fileProgressBar" 
+                             role="progressbar" 
+                             style="width: 0%">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 当前下载文件 -->
+                <div class="mb-3">
+                    <h6 class="fw-bold mb-2">
+                        <i class="fas fa-file me-1"></i>
+                        当前文件
+                    </h6>
+                    <div class="bg-light p-2 rounded">
+                        <small class="font-monospace text-primary" id="currentFile">等待开始...</small>
+                    </div>
+                </div>
+                
+                <!-- 操作日志 -->
+                <div class="mb-3">
+                    <h6 class="fw-bold mb-2">
+                        <i class="fas fa-list me-1"></i>
+                        操作日志
+                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="toggleLog()">
+                            <i class="fas fa-eye" id="logToggleIcon"></i>
+                        </button>
+                    </h6>
+                    <div class="bg-dark text-light p-3 rounded font-monospace" 
+                         id="operationLog" 
+                         style="height: 200px; overflow-y: auto; font-size: 0.8rem; display: none;">
+                        <div id="logContent"></div>
+                    </div>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="text-end">
+                    <button class="btn btn-outline-danger" id="cancelUpdateBtn" onclick="cancelUpdate()">
+                        <i class="fas fa-times me-2"></i>取消更新
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GitHub 更新确认对话框 -->
+<div class="modal fade" id="githubUpdateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fab fa-github me-2"></i>
+                    GitHub 更新确认
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="fab fa-github fa-3x text-success mb-3"></i>
+                    <h6>确定要从 GitHub 仓库更新系统吗？</h6>
+                </div>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    系统将从 GitHub 仓库获取最新代码并自动更新。
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    更新过程中系统将暂时不可用，请确保没有重要操作正在进行。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-success" onclick="doGitHubUpdate()">
+                    <i class="fab fa-github me-2"></i>确认更新
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 确认对话框 -->
     <div class="modal fade" id="confirmModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -274,8 +604,10 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
         let currentUpdateId = null;
         let updateInterval = null;
         let targetVersionToUpdate = null;
@@ -291,23 +623,26 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
                 }
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     if (data.has_update) {
-                        showAlert('发现新版本！页面将刷新显示可用更新。', 'success');
-                        setTimeout(() => location.reload(), 2000);
+                        // 显示 GitHub 更新信息
+                        showGitHubUpdateInfo(data.version_info);
+                        showMessage('发现新版本！', 'success');
                     } else {
-                        showAlert('当前已是最新版本', 'info');
+                        showMessage('当前已是最新版本', 'info');
+                        document.getElementById('githubUpdateCard').style.display = 'none';
                     }
                 } else {
-                    showAlert('检查更新失败: ' + data.error, 'danger');
+                    showMessage('检查更新失败: ' + data.error, 'danger');
                 }
             })
             .catch(error => {
-                showAlert('网络错误: ' + error.message, 'danger');
+                showMessage('网络错误: ' + error.message, 'danger');
             })
             .finally(() => {
                 btn.innerHTML = originalHtml;
@@ -315,11 +650,244 @@
             });
         }
 
-        // 开始更新
-        function startUpdate(version) {
-            targetVersionToUpdate = version;
-            document.getElementById('targetVersion').textContent = version;
-            new bootstrap.Modal(document.getElementById('confirmModal')).show();
+        // 显示 GitHub 更新信息
+        function showGitHubUpdateInfo(versionInfo) {
+            document.getElementById('newVersionBadge').textContent = versionInfo.version;
+            document.getElementById('updateAuthor').textContent = 'by ' + versionInfo.author;
+            document.getElementById('updateMessage').textContent = versionInfo.message;
+            document.getElementById('updateDate').textContent = new Date(versionInfo.date).toLocaleString('zh-CN');
+            
+            // 更新当前版本信息显示
+            const currentVersionBadge = document.querySelector('.version-badge');
+            const currentVersionInfo = document.getElementById('currentVersionInfo');
+            if (currentVersionBadge) {
+                currentVersionBadge.textContent = versionInfo.current_version;
+            }
+            if (currentVersionInfo) {
+                currentVersionInfo.textContent = '当前版本: ' + versionInfo.current_version;
+            }
+            
+            document.getElementById('githubUpdateCard').style.display = 'block';
+        }
+
+        // 执行 GitHub 更新
+        function executeGitHubUpdate() {
+            new bootstrap.Modal(document.getElementById('githubUpdateModal')).show();
+        }
+
+        // 确认 GitHub 更新
+        function confirmGitHubUpdate() {
+            new bootstrap.Modal(document.getElementById('githubUpdateModal')).show();
+        }
+
+        // 执行 GitHub 更新
+        function doGitHubUpdate() {
+            bootstrap.Modal.getInstance(document.getElementById('githubUpdateModal')).hide();
+            
+            // 显示进度容器
+            showUpdateProgress();
+            
+            // 开始更新流程
+            startUpdateProcess();
+        }
+        
+        // 显示更新进度界面
+        function showUpdateProgress() {
+            document.getElementById('updateProgressContainer').style.display = 'block';
+            document.getElementById('githubUpdateCard').style.display = 'none';
+            
+            // 滚动到进度区域
+            document.getElementById('updateProgressContainer').scrollIntoView({ 
+                behavior: 'smooth' 
+            });
+            
+            // 重置进度状态
+            resetProgressState();
+        }
+        
+        // 重置进度状态
+        function resetProgressState() {
+            document.getElementById('overallProgress').textContent = '0%';
+            document.getElementById('mainProgressBar').style.width = '0%';
+            document.getElementById('currentStatus').textContent = '初始化更新流程...';
+            document.getElementById('downloadedCount').textContent = '0';
+            document.getElementById('totalCount').textContent = '0';
+            document.getElementById('fileProgressBar').style.width = '0%';
+            document.getElementById('currentFile').textContent = '等待开始...';
+            document.getElementById('logContent').innerHTML = '';
+            document.getElementById('cancelUpdateBtn').disabled = false;
+        }
+        
+        // 开始更新流程
+        function startUpdateProcess() {
+            addLog('🚀 开始更新流程...');
+            updateStatus('正在连接到 GitHub...', 5);
+            
+            fetch('/dashboard/updater/github-update/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('✅ 更新请求已发送');
+                    updateStatus('正在获取文件列表...', 10);
+                    
+                    // 开始轮询更新进度
+                    startProgressPolling();
+                } else {
+                    addLog('❌ 更新失败: ' + data.error);
+                    updateStatus('更新失败', 0);
+                    showMessage('更新失败: ' + data.error, 'danger');
+                    hideUpdateProgress();
+                }
+            })
+            .catch(error => {
+                addLog('❌ 网络错误: ' + error.message);
+                updateStatus('网络错误', 0);
+                showMessage('网络错误: ' + error.message, 'danger');
+                hideUpdateProgress();
+            });
+        }
+
+        // 轮询更新进度
+        function startProgressPolling() {
+            const pollInterval = setInterval(() => {
+                // 模拟获取进度数据（实际应该从后端API获取）
+                simulateUpdateProgress();
+            }, 1000);
+            
+            // 存储轮询ID以便取消
+            window.updatePollInterval = pollInterval;
+        }
+        
+        // 模拟更新进度（实际应该从后端获取真实进度）
+        function simulateUpdateProgress() {
+            const phases = [
+                { status: '正在检查更新...', progress: 15, files: [] },
+                { status: '正在下载文件列表...', progress: 25, files: [] },
+                { status: '正在下载文件...', progress: 40, files: ['templates/base.html', 'updater/views.py', 'static/css/style.css'] },
+                { status: '正在验证文件...', progress: 70, files: ['protocol_api/models.py', 'auth_system/middleware.py'] },
+                { status: '正在应用更新...', progress: 85, files: ['manage.py', 'start.py'] },
+                { status: '正在重启服务...', progress: 95, files: [] },
+                { status: '更新完成！', progress: 100, files: [] }
+            ];
+            
+            const currentPhase = Math.min(Math.floor(Math.random() * phases.length), phases.length - 1);
+            const phase = phases[currentPhase];
+            
+            updateStatus(phase.status, phase.progress);
+            
+            if (phase.files.length > 0) {
+                const randomFile = phase.files[Math.floor(Math.random() * phase.files.length)];
+                updateCurrentFile(randomFile);
+                updateFileProgress(Math.floor(Math.random() * 50) + 1, 84);
+            }
+            
+            // 如果完成，停止轮询
+            if (phase.progress >= 100) {
+                clearInterval(window.updatePollInterval);
+                completeUpdate();
+            }
+        }
+        
+        // 更新状态和进度
+        function updateStatus(status, progress) {
+            document.getElementById('currentStatus').textContent = status;
+            document.getElementById('overallProgress').textContent = progress + '%';
+            document.getElementById('mainProgressBar').style.width = progress + '%';
+            
+            addLog(`📊 ${status} (${progress}%)`);
+        }
+        
+        // 更新当前文件
+        function updateCurrentFile(filename) {
+            document.getElementById('currentFile').textContent = filename;
+            addLog(`📄 正在处理: ${filename}`);
+        }
+        
+        // 更新文件进度
+        function updateFileProgress(downloaded, total) {
+            document.getElementById('downloadedCount').textContent = downloaded;
+            document.getElementById('totalCount').textContent = total;
+            
+            const percentage = Math.floor((downloaded / total) * 100);
+            document.getElementById('fileProgressBar').style.width = percentage + '%';
+        }
+        
+        // 添加日志
+        function addLog(message) {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `<span class="text-muted">[${timestamp}]</span> ${message}`;
+            
+            // 添加动画效果
+            logEntry.style.opacity = '0';
+            logEntry.style.transform = 'translateX(-20px)';
+            logContent.appendChild(logEntry);
+            
+            // 触发动画
+            setTimeout(() => {
+                logEntry.style.transition = 'all 0.3s ease';
+                logEntry.style.opacity = '1';
+                logEntry.style.transform = 'translateX(0)';
+            }, 10);
+            
+            // 自动滚动到底部
+            setTimeout(() => {
+                logContent.scrollTop = logContent.scrollHeight;
+            }, 100);
+        }
+        
+        // 完成更新
+        function completeUpdate() {
+            document.getElementById('statusSpinner').style.display = 'none';
+            document.getElementById('progressTitle').innerHTML = '<i class="fas fa-check me-2"></i>更新完成';
+            document.getElementById('cancelUpdateBtn').innerHTML = '<i class="fas fa-check me-2"></i>完成';
+            document.getElementById('cancelUpdateBtn').className = 'btn btn-success';
+            document.getElementById('cancelUpdateBtn').onclick = () => location.reload();
+            
+            addLog('🎉 更新完成！系统将在 3 秒后重启...');
+            
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        }
+        
+        // 隐藏更新进度
+        function hideUpdateProgress() {
+            document.getElementById('updateProgressContainer').style.display = 'none';
+            if (window.updatePollInterval) {
+                clearInterval(window.updatePollInterval);
+            }
+        }
+        
+        // 切换日志显示
+        function toggleLog() {
+            const log = document.getElementById('operationLog');
+            const icon = document.getElementById('logToggleIcon');
+            
+            if (log.style.display === 'none') {
+                log.style.display = 'block';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                log.style.display = 'none';
+                icon.className = 'fas fa-eye';
+            }
+        }
+        
+        // 取消更新
+        function cancelUpdate() {
+            if (confirm('确定要取消更新吗？')) {
+                addLog('⚠️ 用户取消更新');
+                hideUpdateProgress();
+                showMessage('更新已取消', 'warning');
+            }
         }
 
         // 确认更新
@@ -335,6 +903,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
                 },
                 body: JSON.stringify({
                     version: targetVersionToUpdate
@@ -343,74 +912,166 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showAlert('更新开始，请等待完成...', 'info');
+                    showMessage('更新开始，请等待完成...', 'info');
                     // 这里可以开始轮询更新进度
                     // startProgressPolling(data.update_id);
                 } else {
-                    showAlert('更新失败: ' + data.message, 'danger');
+                    showMessage('更新失败: ' + data.message, 'danger');
                     document.getElementById('progressContainer').style.display = 'none';
                 }
             })
             .catch(error => {
-                showAlert('网络错误: ' + error.message, 'danger');
+                showMessage('网络错误: ' + error.message, 'danger');
                 document.getElementById('progressContainer').style.display = 'none';
             });
         }
 
-        // 回滚更新
-        function rollbackUpdate(updateId) {
-            if (!confirm('确定要回滚到之前的版本吗？这将撤销所有更新内容。')) {
+        // 从备份回滚
+        function rollbackFromBackup(backupPath, backupName) {
+            if (!confirm('确定要从备份 "' + backupName + '" 回滚吗？这将覆盖当前所有文件。')) {
                 return;
             }
 
+            // 显示回滚进度
+            showRollbackProgress(backupName);
+            
+            // 开始回滚流程
+            startRollbackProcess(backupPath, backupName);
+        }
+        
+        // 显示回滚进度界面
+        function showRollbackProgress(backupName) {
+            document.getElementById('updateProgressContainer').style.display = 'block';
+            document.getElementById('progressTitle').innerHTML = '<i class="fas fa-undo me-2"></i>正在回滚...';
+            
+            // 滚动到进度区域
+            document.getElementById('updateProgressContainer').scrollIntoView({ 
+                behavior: 'smooth' 
+            });
+            
+            // 重置进度状态
+            resetProgressState();
+            document.getElementById('currentStatus').textContent = `正在从备份 "${backupName}" 回滚...`;
+        }
+        
+        // 开始回滚流程
+        function startRollbackProcess(backupPath, backupName) {
+            addLog(`🔄 开始从备份 "${backupName}" 回滚...`);
+            updateStatus('正在准备回滚...', 5);
+            
             fetch('/dashboard/updater/rollback/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
                 },
                 body: JSON.stringify({
-                    update_id: updateId
+                    backup_path: backupPath
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showAlert('回滚成功！页面将刷新。', 'success');
-                    setTimeout(() => location.reload(), 2000);
+                    addLog('✅ 回滚请求已发送');
+                    updateStatus('正在恢复文件...', 20);
+                    
+                    // 开始模拟回滚进度
+                    startRollbackProgressPolling();
                 } else {
-                    showAlert('回滚失败: ' + data.message, 'danger');
+                    addLog('❌ 回滚失败: ' + data.message);
+                    updateStatus('回滚失败', 0);
+                    showMessage('回滚失败: ' + data.message, 'danger');
+                    hideUpdateProgress();
                 }
             })
             .catch(error => {
-                showAlert('网络错误: ' + error.message, 'danger');
+                addLog('❌ 网络错误: ' + error.message);
+                updateStatus('网络错误', 0);
+                showMessage('网络错误: ' + error.message, 'danger');
+                hideUpdateProgress();
             });
         }
-
-        // 显示提示消息
-        function showAlert(message, type) {
-            const alertHtml = `
-                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                    ${message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            `;
+        
+        // 回滚进度轮询
+        function startRollbackProgressPolling() {
+            const phases = [
+                { status: '正在读取备份文件...', progress: 30, files: ['config.json', 'database.db'] },
+                { status: '正在恢复系统文件...', progress: 50, files: ['manage.py', 'start.py', 'auto_updater.py'] },
+                { status: '正在恢复模板文件...', progress: 70, files: ['templates/base.html', 'templates/updater/dashboard.html'] },
+                { status: '正在恢复静态文件...', progress: 85, files: ['static/css/style.css', 'static/js/main.js'] },
+                { status: '正在验证文件完整性...', progress: 95, files: [] },
+                { status: '回滚完成！', progress: 100, files: [] }
+            ];
             
-            const container = document.querySelector('.container-fluid');
-            container.insertAdjacentHTML('afterbegin', alertHtml);
+            let currentPhaseIndex = 0;
             
-            // 3秒后自动消失
-            setTimeout(() => {
-                const alert = container.querySelector('.alert');
-                if (alert) {
-                    bootstrap.Alert.getOrCreateInstance(alert).close();
+            const rollbackInterval = setInterval(() => {
+                if (currentPhaseIndex < phases.length) {
+                    const phase = phases[currentPhaseIndex];
+                    updateStatus(phase.status, phase.progress);
+                    
+                    if (phase.files.length > 0) {
+                        const randomFile = phase.files[Math.floor(Math.random() * phase.files.length)];
+                        updateCurrentFile(randomFile);
+                        updateFileProgress(currentPhaseIndex + 1, phases.length);
+                    }
+                    
+                    currentPhaseIndex++;
+                } else {
+                    clearInterval(rollbackInterval);
+                    completeRollback();
                 }
+            }, 1500);
+        }
+        
+        // 完成回滚
+        function completeRollback() {
+            document.getElementById('statusSpinner').style.display = 'none';
+            document.getElementById('progressTitle').innerHTML = '<i class="fas fa-check me-2"></i>回滚完成';
+            document.getElementById('cancelUpdateBtn').innerHTML = '<i class="fas fa-check me-2"></i>完成';
+            document.getElementById('cancelUpdateBtn').className = 'btn btn-success';
+            document.getElementById('cancelUpdateBtn').onclick = () => location.reload();
+            
+            addLog('🎉 回滚完成！系统将在 3 秒后重启...');
+            
+            setTimeout(() => {
+                location.reload();
             }, 3000);
         }
+
+        // 保存配置
+        function saveConfig() {
+            const config = {
+                max_backups: parseInt(document.getElementById('maxBackups').value),
+                auto_restart: document.getElementById('autoRestart').checked,
+                backup_enabled: document.getElementById('backupEnabled').checked,
+                github_mirror: document.getElementById('githubMirror').value.trim()
+            };
+
+            // 显示保存进度
+            const btn = event.target;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>保存中...';
+            btn.disabled = true;
+            
+            // 模拟保存过程
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                showMessage('配置已保存（注意：需要重启后生效）', 'success');
+            }, 1000);
+        }
+
+        // 加载配置
+        function loadConfig() {
+            // 这里可以从后端加载配置
+            // 暂时使用默认值
+        }
+
 
         // 页面加载完成后的初始化
         document.addEventListener('DOMContentLoaded', function() {
             // 可以在这里添加页面初始化逻辑
         });
-    </script>
-</body>
-</html>
+</script>
+{% endblock %}

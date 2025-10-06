@@ -1,0 +1,42 @@
+{
+  "check_interval": 300,
+  "exclude_files": [
+    ".git",
+    ".gitignore",
+    ".gitattributes",
+    "__pycache__",
+    "protocol_core.db",
+    "protocol_core.log",
+    "protocol_core1.db",
+    "protocol_core_example.db",
+    "update_config.json",
+    "last_update_check.json",
+    "auto_updater.py",
+    "加密",
+    "backups",
+    "temp_updates",
+    "staticfiles",
+    "data"
+  ],
+  "exclude_patterns": [
+    "*.db",
+    "*.log",
+    "*.pyc",
+    "*.pyo",
+    "*.sqlite3"
+  ],
+  "smart_update_patterns": [
+    "*.so",
+    "*.py",
+    "*.html",
+    "*.js",
+    "*.css"
+  ],
+  "auto_restart": true,
+  "backup_enabled": true,
+  "max_backups": 10,
+  "github_mirror": "",
+  "retry_count": 3,
+  "retry_delay": 5,
+  "compare_method": "content_hash"
+}

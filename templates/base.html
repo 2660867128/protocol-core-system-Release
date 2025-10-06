@@ -223,9 +223,20 @@
                     <a class="nav-link {% if 'logs' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logs' %}">
                         <i class="fas fa-file-alt me-2"></i>系统日志
                     </a>
-                    <a class="nav-link" href="/dashboard/protocol-config/">
-                        <i class="fas fa-cogs me-2"></i>协议配置
-                    </a>
+                    <!-- 协议配置下拉菜单 -->
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-cogs me-2"></i>协议配置
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/dashboard/protocol-config/">
+                                <i class="fas fa-sliders-h me-2"></i>服务配置
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'updater:dashboard' %}">
+                                <i class="fas fa-sync-alt me-2"></i>更新设置
+                            </a></li>
+                        </ul>
+                    </div>
                     {% if user.is_admin %}
                     <a class="nav-link" href="/admin/">
                         <i class="fas fa-cog me-2"></i>系统管理
