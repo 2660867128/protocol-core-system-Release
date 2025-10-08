@@ -10,7 +10,6 @@ __pycache__
 *.pyo
 *.pyd
 .Python
-*.so
 .tox
 .coverage
 .coverage.*
@@ -44,8 +43,6 @@ logs/
 staticfiles/
 
 # Docker相关
-Dockerfile
-docker-compose.yml
 .dockerignore
 build.bat
 stop.bat
@@ -62,4 +59,22 @@ tests/
 
 # 文档
 docs/
+# 保留重要的README文件，只排除其他md文件
 *.md
+!README.md
+!README_Docker.md
+
+# 加密相关（运行时不需要）
+加密/
+encrypt.bat
+encrypt_project.py
+encrypt_config.py
+nuitka_encrypt.py
+
+# 更新相关临时文件
+temp_updates/
+backups/
+
+# 数据库文件（使用示例数据库）
+protocol_core.db
+protocol_core1.db

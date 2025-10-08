@@ -1,5 +1,5 @@
 # 使用Python 3.11作为基础镜像
-FROM python:3.11-slim
+FROM python:3.10.12-slim
 
 # 设置工作目录
 WORKDIR /app
@@ -9,8 +9,9 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=protocol_core.settings
 ENV DEBUG=False
-ENV PYTHONPATH=/app:$PYTHONPATH
+ENV PYTHONPATH=/app
 ENV DOCKER_CONTAINER=true
+ENV ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,*
 
 # 安装系统依赖
 RUN apt-get update && apt-get install -y \

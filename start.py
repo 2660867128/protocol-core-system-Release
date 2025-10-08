@@ -705,9 +705,9 @@ def main():
         return
     
     # 检查是否在Docker环境中
-    if is_docker_environment():
-        docker_main()
-        return
+    #if is_docker_environment():
+     #   docker_main()
+    #    return
     
     print("=" * 60)
     print("🚀 协议核心管理系统 - WebSocket增强版")
