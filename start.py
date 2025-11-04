@@ -710,12 +710,12 @@ def main():
     #    return
     
     print("=" * 60)
-    print("🚀 协议核心管理系统 - WebSocket增强版")
+    # print("🚀 协议核心管理系统 - WebSocket增强版")
     print("=" * 60)
-    print(f"📡 支持实时WebSocket通信")
-    print(f"🌐 现代化Web管理界面")
-    print(f"⚡ 高性能异步处理")
-    print(f"🎯 版本: {SERVER_CONFIG['VERSION']}")
+    # print(f"📡 支持实时WebSocket通信")
+    # print(f"🌐 现代化Web管理界面")
+    # print(f"⚡ 高性能异步处理")
+    # print(f"🎯 版本: {SERVER_CONFIG['VERSION']}")
     print(f"🌐 启动端口: {SERVER_CONFIG['PORT']}")
     print("=" * 60)
     
