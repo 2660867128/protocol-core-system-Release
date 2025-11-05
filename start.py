@@ -327,8 +327,8 @@ def setup_database():
             Path("protocol_core.db").unlink()
             print("   清理现有数据库")
         
-        # 生成迁移文件
-        apps = ["accounts", "connections", "wechat_login", "protocol_api", "read_check", "protocol_config"]
+        # 生成迁移文件（包含所有应用）
+        apps = ["accounts", "connections", "wechat_login", "protocol_api", "read_check", "protocol_config", "updater", "auth_system", "auth_codes"]
         for app in apps:
             try:
                 subprocess.check_call([sys.executable, "manage.py", "makemigrations", app], 
@@ -336,8 +336,8 @@ def setup_database():
             except:
                 pass
         
-        # 执行迁移
-        subprocess.check_call([sys.executable, "manage.py", "migrate"], 
+        # 执行迁移（确保所有应用的迁移都被执行）
+        subprocess.check_call([sys.executable, "manage.py", "migrate", "--noinput"], 
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print("✅ 数据库设置完成")
         return True
