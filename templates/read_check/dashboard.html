@@ -332,6 +332,66 @@
         </div>
     </div>
 
+    <!-- 协议系统测试面板 -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-vial me-2"></i>协议系统测试 - POST /api/v1/protocol/odrea-system/</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label">操作 action</label>
+                            <select id="odreaAction" class="form-select">
+                                <option value="get_all_wxids">get_all_wxids</option>
+                                <option value="get_code">get_code</option>
+                                <option value="read_article">read_article</option>
+                                <option value="get_mobile">get_mobile</option>
+                                <option value="get_openid">get_openid</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">协议服务密码(可选)</label>
+                            <input id="odreaPassword" type="password" class="form-control" placeholder="password">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">wxid</label>
+                            <input id="odreaWxid" type="text" class="form-control" placeholder="wxid_xxx">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">appid</label>
+                            <input id="odreaAppid" type="text" class="form-control" placeholder="wx53bc...">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">link / to_wxid / data</label>
+                            <input id="odreaExtra" type="text" class="form-control" placeholder="根据action填写">
+                        </div>
+                        <div class="col-md-12 d-flex align-items-center">
+                            <div class="form-check me-3">
+                                <input class="form-check-input" type="checkbox" id="odreaShowRaw">
+                                <label class="form-check-label" for="odreaShowRaw">仅显示原始响应</label>
+                            </div>
+                            <button id="odreaTestBtn" class="btn btn-primary ms-auto"><i class="fas fa-paper-plane me-2"></i>测试请求</button>
+                        </div>
+                    </div>
+                    <hr/>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">请求体</label>
+                            <pre id="odreaRequest" class="bg-light p-3 rounded border" style="min-height:140px; white-space: pre-wrap;"></pre>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">响应结果</label>
+                            <pre id="odreaResponse" class="bg-light p-3 rounded border" style="min-height:140px; white-space: pre-wrap;"></pre>
+                        </div>
+                    </div>
+                    <div class="form-text mt-2">提示：不同 action 需要的参数不同，输入框“link / to_wxid / data”会被用作对应字段。</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 <!-- 添加配置模态框 -->
 <div class="modal fade" id="addConfigModal" tabindex="-1">
     <div class="modal-dialog">
@@ -1023,6 +1083,88 @@ $(document).ready(function() {
     // 每秒更新运行时间
     setInterval(updateUptime, 1000);
     updateUptime();
+
+    // 协议系统测试：根据 action 更新占位说明
+    function refreshOdreaPlaceholders() {
+        const action = $('#odreaAction').val();
+        const $wxid = $('#odreaWxid');
+        const $appid = $('#odreaAppid');
+        const $extra = $('#odreaExtra');
+        $wxid.attr('placeholder', 'wxid_xxx');
+        $appid.attr('placeholder', 'wx53bc293f50e1449d');
+        $extra.attr('placeholder', '根据action填写');
+        if (action === 'get_all_wxids') {
+            $wxid.val(''); $appid.val(''); $extra.val('');
+            $extra.attr('placeholder', '无需填写');
+        } else if (action === 'read_article') {
+            $extra.attr('placeholder', '文章链接 link');
+        } else if (action === 'get_mobile') {
+            $extra.attr('placeholder', 'data(字符串)，opt默认1');
+        } else if (action === 'get_openid') {
+            $extra.attr('placeholder', 'to_wxid');
+        } else if (action === 'get_code') {
+            $extra.attr('placeholder', '可留空');
+        }
+        buildOdreaRequestPreview();
+    }
+
+    function buildOdreaRequestPreview() {
+        const action = $('#odreaAction').val();
+        const password = $('#odreaPassword').val();
+        const wxid = $('#odreaWxid').val();
+        let appid = $('#odreaAppid').val();
+        const extra = $('#odreaExtra').val();
+        const body = { action: action };
+        if (password) body.password = password;
+        if (action === 'get_all_wxids') {
+            // no extra
+        } else if (action === 'read_article') {
+            body.wxid = wxid; body.link = extra;
+        } else if (action === 'get_mobile') {
+            body.wxid = wxid; body.appid = appid; body.data = extra; body.opt = 1;
+        } else if (action === 'get_openid') {
+            body.wxid = wxid; body.appid = appid; body.to_wxid = extra;
+        } else if (action === 'get_code') {
+            body.wxid = wxid; body.appid = appid || 'wx53bc293f50e1449d';
+        }
+        $('#odreaRequest').text(JSON.stringify(body, null, 2));
+    }
+
+    $('#odreaAction, #odreaPassword, #odreaWxid, #odreaAppid, #odreaExtra').on('input change', buildOdreaRequestPreview);
+    refreshOdreaPlaceholders();
+
+    $('#odreaAction').on('change', refreshOdreaPlaceholders);
+
+    $('#odreaTestBtn').on('click', function() {
+        const payloadText = $('#odreaRequest').text();
+        let payload;
+        try { payload = JSON.parse(payloadText || '{}'); } catch(e) { payload = {}; }
+        $('#odreaResponse').text('请求中...');
+        addLog(`协议系统测试: ${JSON.stringify(payload)}`, 'debug');
+        $.ajax({
+            url: '/api/v1/protocol/odrea-system/',
+            method: 'POST',
+            data: JSON.stringify(payload),
+            contentType: 'application/json',
+            headers: { 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val() },
+            timeout: 15000,
+            success: function(res){
+                const onlyRaw = $('#odreaShowRaw').is(':checked');
+                let display = res;
+                if (!onlyRaw && res && res.data && (res.data.code || res.data.Code)) {
+                    display = { code: res.code, msg: res.msg, data: { code: res.data.code || res.data.Code } };
+                }
+                $('#odreaResponse').text(JSON.stringify(display, null, 2));
+                addLog('协议系统响应: ' + JSON.stringify(res), 'response');
+            },
+            error: function(xhr){
+                let text = '网络错误';
+                try { text = xhr.responseText || text; } catch(e){}
+                $('#odreaResponse').text(text);
+                addLog('协议系统请求失败: ' + text, 'error');
+            }
+        });
+    });
 });
 
 // 图表相关代码
