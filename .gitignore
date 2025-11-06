@@ -132,7 +132,7 @@ dmypy.json
 
 # Django specific
 media/
-# staticfiles/
+staticfiles/
 static/
 
 # IDE
