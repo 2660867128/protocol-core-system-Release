@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     default-libmysqlclient-dev \
     pkg-config \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制requirements文件并安装Python依赖

@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 
 # C extensions
-
+# *.so
 
 # Distribution / packaging
 .Python
@@ -132,7 +132,7 @@ dmypy.json
 
 # Django specific
 media/
-staticfiles/
+# staticfiles/
 static/
 
 # IDE
