@@ -164,6 +164,54 @@
                 transform: translateY(0);
             }
         }
+        
+        /* 移动端响应式优化 */
+        @media (max-width: 768px) {
+            /* 标签页在移动端优化 */
+            .nav-tabs {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }
+            
+            .nav-tabs::-webkit-scrollbar {
+                display: none;
+            }
+            
+            .nav-tabs .nav-link {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+            
+            /* 卡片内容优化 */
+            .tab-content {
+                padding: 0.5rem 0;
+            }
+            
+            /* 备份管理卡片样式 */
+            .backup-card-mobile {
+                border-left: 3px solid #ffc107;
+            }
+            
+            /* 版本卡片在移动端优化 */
+            .version-item-mobile {
+                flex-direction: column;
+            }
+            
+            .version-item-mobile .ms-3 {
+                margin-left: 0 !important;
+                margin-top: 1rem;
+                width: 100%;
+            }
+            
+            .version-item-mobile .ms-3 .btn {
+                width: 100%;
+            }
+        }
 </style>
 {% endblock %}
 
@@ -288,9 +336,9 @@
                             <div class="tab-pane fade" id="available-versions" role="tabpanel" aria-labelledby="available-versions-tab">
                                 {% if available_versions %}
                                     {% for version in available_versions %}
-                                    <div class="border rounded p-3 mb-3">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div class="flex-grow-1">
+                                    <div class="border rounded p-3 mb-3 version-item-mobile">
+                                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start">
+                                            <div class="flex-grow-1 w-100">
                                                 <h6 class="mb-2">
                                                     <span class="badge bg-{% if version.is_stable %}success{% else %}warning{% endif %} me-2">
                                                         v{{ version.version }}
@@ -316,15 +364,15 @@
                                                 </div>
                                                 {% endif %}
                                             </div>
-                                            <div class="ms-3">
+                                            <div class="ms-md-3 mt-2 mt-md-0 w-100 w-md-auto">
                                                 {% if version.version != current_version %}
-                                                <button class="btn btn-primary btn-sm" 
+                                                <button class="btn btn-primary btn-sm w-100 w-md-auto" 
                                                         onclick="startUpdate('{{ version.version }}')">
                                                     <i class="fas fa-download me-1"></i>
                                                     更新到此版本
                                                 </button>
                                                 {% else %}
-                                                <span class="badge bg-success">当前版本</span>
+                                                <span class="badge bg-success d-block d-md-inline-block text-center">当前版本</span>
                                                 {% endif %}
                                             </div>
                                         </div>
@@ -349,7 +397,8 @@
                             <!-- 备份管理标签页 -->
                             <div class="tab-pane fade" id="backup-management" role="tabpanel" aria-labelledby="backup-management-tab">
                                 {% if backup_list %}
-                                    <div class="table-responsive">
+                                    <!-- 桌面端表格视图 -->
+                                    <div class="table-responsive d-none d-md-block">
                                         <table class="table table-hover">
                                             <thead>
                                                 <tr>
@@ -381,6 +430,34 @@
                                                 {% endfor %}
                                             </tbody>
                                         </table>
+                                    </div>
+                                    
+                                    <!-- 移动端卡片视图 -->
+                                    <div class="d-md-none">
+                                        {% for backup in backup_list %}
+                                        <div class="card mb-3 shadow-sm">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-start justify-content-between mb-2">
+                                                    <div class="flex-grow-1">
+                                                        <h6 class="card-title mb-1">
+                                                            <i class="fas fa-archive text-warning me-2"></i>
+                                                            <span class="fw-bold">{{ backup.name }}</span>
+                                                        </h6>
+                                                        <p class="text-muted small mb-0">
+                                                            <i class="fas fa-clock me-1"></i>
+                                                            {{ backup.time }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div class="d-grid">
+                                                    <button class="btn btn-outline-warning btn-sm" 
+                                                            onclick="rollbackFromBackup('{{ backup.path }}', '{{ backup.name }}')">
+                                                        <i class="fas fa-undo me-1"></i>回滚
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
                                     </div>
                                 {% else %}
                                     <div class="text-center py-5">

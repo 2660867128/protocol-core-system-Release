@@ -44,6 +44,7 @@
             position: sticky;
             top: 0;
             z-index: 1000;
+            min-height: 70px;
         }
         
         /* 下拉菜单样式 */
@@ -98,7 +99,6 @@
             box-shadow: var(--hover-shadow);
         }
         
-{{ ... }}
         .navbar-brand {
             font-weight: 700;
             font-size: 1.5rem;
@@ -109,6 +109,10 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            flex-shrink: 0;
+            max-width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
         }
         
         .navbar-brand i {
@@ -117,6 +121,31 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
             font-size: 1.8rem;
+            flex-shrink: 0;
+        }
+        
+        /* 导航栏容器布局 */
+        .navbar .container-fluid {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: nowrap;
+        }
+        
+        /* 确保下拉菜单不影响其他元素 */
+        .navbar-nav {
+            flex-shrink: 0;
+        }
+        
+        .navbar-nav .dropdown {
+            position: static;
+        }
+        
+        .navbar-nav .dropdown-menu {
+            position: absolute;
+            right: 0;
+            left: auto;
+            min-width: 200px;
         }
         
         /* 现代化侧边栏 */
@@ -194,6 +223,7 @@
         .main-content {
             padding: 2rem;
             background: transparent;
+            min-height: calc(100vh - 88px);
         }
         
         .card {
@@ -436,27 +466,159 @@
             animation: slideInLeft 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
+        /* 移动端汉堡菜单按钮 */
+        .navbar-toggler {
+            background: var(--primary-gradient);
+            border: none;
+            border-radius: var(--border-radius);
+            color: white;
+            padding: 0.5rem 0.75rem;
+            margin-right: 0.75rem;
+            font-size: 1.2rem;
+            transition: var(--transition);
+            display: none;
+        }
+        
+        .navbar-toggler:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+        }
+        
+        /* 侧边栏遮罩层 */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 998;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .sidebar-overlay.show {
+            display: block;
+            opacity: 1;
+        }
+        
         /* 响应式设计 */
         @media (max-width: 768px) {
+            .navbar-toggler {
+                display: block;
+            }
+            
+            .navbar {
+                min-height: 60px;
+                padding: 0.75rem 0;
+            }
+            
             .sidebar {
                 position: fixed;
                 left: -100%;
-                top: 88px;
+                top: 60px;
+                height: calc(100vh - 60px);
                 width: 280px;
                 z-index: 999;
                 transition: var(--transition);
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+                overflow-y: auto;
             }
             
             .sidebar.show {
                 left: 0;
             }
             
+            /* 确保容器从导航栏下方开始 */
+            .container-fluid {
+                padding-top: 0;
+                margin-top: 0;
+            }
+            
             .main-content {
                 padding: 1rem;
+                padding-top: 1rem;
+                width: 100%;
+                margin-left: 0;
+                margin-top: 0;
+                min-height: calc(100vh - 60px);
+                position: relative;
+                z-index: 1;
+                overflow-x: hidden;
+            }
+            
+            /* 确保导航栏不会遮挡内容 */
+            body {
+                padding-top: 0;
+            }
+            
+            /* 侧边栏遮罩层从导航栏下方开始 */
+            .sidebar-overlay {
+                top: 60px;
+            }
+            
+            .container-fluid > .row {
+                margin-left: 0;
+                margin-right: 0;
+            }
+            
+            /* 移动端侧边栏显示时，主内容区域不需要偏移 */
+            .col-md-10 {
+                width: 100%;
+                max-width: 100%;
+                flex: 0 0 100%;
+            }
+            
+            /* 移动端导航栏布局修复 */
+            .navbar .container-fluid {
+                position: relative;
+                padding-left: 1rem;
+                padding-right: 1rem;
             }
             
             .navbar-brand {
-                font-size: 1.2rem;
+                font-size: 1.1rem;
+                max-width: calc(100% - 120px);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                flex: 0 0 auto;
+            }
+            
+            .navbar-brand span {
+                display: inline-block;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                max-width: 100%;
+            }
+            
+            .navbar-nav {
+                flex: 0 0 auto;
+                margin-left: auto;
+            }
+            
+            .navbar-nav .dropdown {
+                position: relative;
+            }
+            
+            .navbar-nav .dropdown-menu {
+                position: absolute;
+                right: 0;
+                left: auto;
+                min-width: 200px;
+                max-width: calc(100vw - 2rem);
+                transform: translateX(0);
+            }
+            
+            .navbar-nav .dropdown-toggle {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.9rem;
+            }
+            
+            .navbar-nav .dropdown-toggle i {
+                margin-right: 0.3rem;
             }
         }
     </style>
@@ -467,6 +629,11 @@
     <!-- 导航栏 -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
+            {% if user.is_authenticated %}
+            <button class="navbar-toggler d-lg-none" type="button" aria-label="Toggle navigation">
+                <i class="fas fa-bars"></i>
+            </button>
+            {% endif %}
             <a class="navbar-brand" href="{% url 'dashboard' %}">
                 <i class="fas fa-cogs me-2"></i>协议核心管理系统
             </a>
@@ -509,8 +676,13 @@
         </div>
     </nav>
 
-    <div class="container-fluid">
-        <div class="row">
+    <!-- 侧边栏遮罩层 -->
+    {% if user.is_authenticated %}
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    {% endif %}
+
+    <div class="container-fluid" style="padding-top: 0; margin-top: 0;">
+        <div class="row" style="margin-left: 0; margin-right: 0;">
             <!-- 侧边栏 -->
             {% if user.is_authenticated %}
             <div class="col-md-2 sidebar">
@@ -805,7 +977,16 @@
         
         // 移动端菜单切换
         function toggleMobileMenu() {
-            $('.sidebar').toggleClass('show');
+            const sidebar = $('.sidebar');
+            const overlay = $('#sidebarOverlay');
+            sidebar.toggleClass('show');
+            overlay.toggleClass('show');
+        }
+
+        // 关闭侧边栏
+        function closeSidebar() {
+            $('.sidebar').removeClass('show');
+            $('#sidebarOverlay').removeClass('show');
         }
 
         // 页面加载完成后的初始化
@@ -820,14 +1001,33 @@
             }, 5000);
             
             // 移动端侧边栏切换
-            $('.navbar-toggler').click(function() {
-                $('.sidebar').toggleClass('show');
+            $('.navbar-toggler').click(function(e) {
+                e.stopPropagation();
+                toggleMobileMenu();
             });
             
-            // 点击其他区域关闭侧边栏
+            // 点击遮罩层关闭侧边栏
+            $('#sidebarOverlay').click(function() {
+                closeSidebar();
+            });
+            
+            // 点击侧边栏外部区域关闭（移动端）
             $(document).click(function(e) {
-                if (!$(e.target).closest('.sidebar, .navbar-toggler').length) {
-                    $('.sidebar').removeClass('show');
+                if ($(window).width() <= 768) {
+                    if (!$(e.target).closest('.sidebar, .navbar-toggler').length) {
+                        if ($('.sidebar').hasClass('show')) {
+                            closeSidebar();
+                        }
+                    }
+                }
+            });
+            
+            // 侧边栏链接点击后关闭（移动端）
+            $('.sidebar .nav-link').click(function() {
+                if ($(window).width() <= 768) {
+                    setTimeout(function() {
+                        closeSidebar();
+                    }, 300);
                 }
             });
         });
