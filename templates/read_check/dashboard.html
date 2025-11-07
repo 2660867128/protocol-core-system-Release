@@ -6,21 +6,33 @@
 {% block content %}
 {% csrf_token %}
 <div class="fade-in">
-    <!-- 页面标题和统计 -->
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <h2 class="mb-0">
-                <i class="fas fa-eye me-2 text-info"></i>阅读过检
-            </h2>
-            <p class="text-muted mb-0">智能文章阅读量监控系统</p>
+    <!-- 页面标题和操作按钮 -->
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-6">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <div class="page-header-icon text-white">
+                        <i class="fas fa-eye fa-2x"></i>
+                    </div>
+                </div>
+                <div>
+                    <h2 class="mb-0 fw-bold">阅读过检</h2>
+                    <p class="text-muted mb-0 small">智能文章阅读量监控系统</p>
+                </div>
+            </div>
         </div>
-        <div class="col-md-4 text-end">
-            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary me-2">
-                <i class="fas fa-arrow-left me-2"></i>返回仪表板
-            </a>
-            <button class="btn btn-success" onclick="addConfig()">
-                <i class="fas fa-plus me-1"></i>添加协议
-            </button>
+        <div class="col-md-6">
+            <div class="btn-action-group justify-content-end">
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>返回
+                </a>
+                <a href="{% url 'read_check_sessions' %}" class="btn btn-primary">
+                    <i class="fas fa-list me-1"></i>阅读详细日志
+                </a>
+                <button class="btn btn-success" onclick="addConfig()">
+                    <i class="fas fa-plus me-1"></i>添加协议
+                </button>
+            </div>
         </div>
     </div>
 
@@ -268,67 +280,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- 系统状态 -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-heartbeat me-2"></i>系统状态
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="status-item mb-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-server me-2 text-primary"></i>服务状态</span>
-                            <span class="badge bg-success">运行中</span>
-                        </div>
-                    </div>
-                    <div class="status-item mb-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-network-wired me-2 text-info"></i>网络连接</span>
-                            <span class="badge bg-success">正常</span>
-                        </div>
-                    </div>
-                    <div class="status-item mb-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-database me-2 text-warning"></i>数据库</span>
-                            <span class="badge bg-success">连接正常</span>
-                        </div>
-                    </div>
-                    <div class="status-item">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-clock me-2 text-secondary"></i>运行时间</span>
-                            <span class="text-muted" id="uptime">--:--:--</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 阅读链接日志 -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">
-                            <i class="fas fa-link me-2"></i>阅读链接日志
-                        </h5>
-                        <a href="{% url 'read_check_sessions' %}" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-external-link-alt me-1"></i>查看全部
-                        </a>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="text-center text-muted py-3">
-                        <i class="fas fa-link fa-2x mb-2"></i>
-                        <div>点击"查看全部"查看阅读链接检测记录</div>
-                        <small class="text-muted">包含详细的检测流程和结果</small>
-                    </div>
-                    <div class="d-grid gap-2 mt-3">
-                        <a href="/dashboard/logs/" class="btn btn-outline-secondary btn-sm">
-                            <i class="fas fa-list me-1"></i>系统日志
-                        </a>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -447,6 +398,79 @@
 <!-- JavaScript代码已移至页面底部的extra_js块中 -->
 
 <style>
+/* 页面头部样式 */
+.page-header {
+    padding: 1.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+    margin-bottom: 2rem;
+}
+
+.page-header-icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    transition: transform 0.3s ease;
+}
+
+.page-header-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* 按钮组样式优化 */
+.btn-action-group {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.btn-action-group .btn {
+    padding: 0.5rem 1.25rem;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-action-group .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-action-group .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+}
+
+.btn-action-group .btn-primary:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%);
+}
+
+.btn-action-group .btn-success {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    border: none;
+}
+
+.btn-action-group .btn-success:hover {
+    background: linear-gradient(135deg, #0d7a72 0%, #2dd169 100%);
+}
+
+.btn-action-group .btn-outline-secondary {
+    border: 1.5px solid #dee2e6;
+    color: #6c757d;
+}
+
+.btn-action-group .btn-outline-secondary:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+    color: #495057;
+}
+
 /* 渐变背景 */
 .bg-gradient-primary {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1021,33 +1045,9 @@ function testReadCheck() {
     });
 }
 
-// 更新运行时间
-function updateUptime() {
-    const startTime = new Date().getTime() - (Math.random() * 3600000); // 模拟运行时间
-    const now = new Date().getTime();
-    const uptime = now - startTime;
-    
-    const hours = Math.floor(uptime / (1000 * 60 * 60));
-    const minutes = Math.floor((uptime % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((uptime % (1000 * 60)) / 1000);
-    
-    $('#uptime').text(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-}
 
 // 页面加载完成后的初始化
 $(document).ready(function() {
-    // 添加一些示例调试日志
-    setTimeout(() => {
-        addLog('[DEBUG] 账号: wxid_t3y7wxoppr78 第一次阅读量: 223', 'debug');
-    }, 1000);
-    
-    setTimeout(() => {
-        addLog('[DEBUG] 账号: wxid_t3y7wxoppr78 第二次阅读量: 223', 'debug');
-    }, 1500);
-    
-    setTimeout(() => {
-        addLog('收到响应: {"success":true,"increased":false}', 'response');
-    }, 2000);
     
     // 暂停/恢复日志
     let logsPaused = false;
@@ -1079,10 +1079,6 @@ $(document).ready(function() {
         $('#addWxidForm')[0].reset();
         currentConfigId = null;
     });
-    
-    // 每秒更新运行时间
-    setInterval(updateUptime, 1000);
-    updateUptime();
 
     // 协议系统测试：根据 action 更新占位说明
     function refreshOdreaPlaceholders() {
