@@ -39,7 +39,7 @@
     <!-- 统计卡片 -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card bg-gradient-primary text-white">
+            <div class="card bg-gradient-primary text-white stat-card">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
@@ -54,7 +54,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-gradient-success text-white">
+            <div class="card bg-gradient-success text-white stat-card">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
@@ -69,7 +69,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-gradient-info text-white">
+            <div class="card bg-gradient-info text-white stat-card">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
@@ -84,15 +84,23 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-gradient-warning text-white">
+            <div class="card bg-gradient-warning text-white stat-card">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
                             <h6 class="card-title mb-0">今日检测</h6>
                             <h3 class="mb-0">{{ today_checks|default:0 }}</h3>
-                            <small class="opacity-75">
-                                成功: {{ today_success|default:0 }} | 失败: {{ today_failed|default:0 }}
-                            </small>
+                            <div class="stat-detail d-flex align-items-center justify-content-start mt-1">
+                                <span class="stat-badge stat-success">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>{{ today_success|default:0 }}</span>
+                                </span>
+                                <span class="stat-divider">|</span>
+                                <span class="stat-badge stat-failed">
+                                    <i class="fas fa-times-circle"></i>
+                                    <span>{{ today_failed|default:0 }}</span>
+                                </span>
+                            </div>
                         </div>
                         <div class="ms-3">
                             <i class="fas fa-chart-line fa-2x opacity-75"></i>
@@ -593,6 +601,94 @@
     background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
     border-radius: 12px;
     border: 2px dashed #dee2e6;
+}
+
+/* 统计卡片样式 - 统一高度 */
+.stat-card {
+    height: 130px;
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-card .card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex: 1;
+    padding: 1.25rem;
+    height: 100%;
+}
+
+.stat-card .d-flex.align-items-center {
+    height: 100%;
+    width: 100%;
+}
+
+.stat-card h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-top: 0.5rem;
+    margin-bottom: 0;
+}
+
+.stat-card .card-title {
+    font-size: 0.875rem;
+    font-weight: 500;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0;
+}
+
+/* 今日检测详情样式 - 紧凑设计 */
+.stat-detail {
+    margin-top: 0.25rem;
+    font-size: 0.7rem;
+    line-height: 1.1;
+    height: auto;
+    min-height: 16px;
+}
+
+.stat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    opacity: 0.9;
+}
+
+.stat-badge i {
+    font-size: 0.65rem;
+}
+
+.stat-divider {
+    margin: 0 0.4rem;
+    opacity: 0.5;
+    font-size: 0.65rem;
+}
+
+.stat-success,
+.stat-failed {
+    color: rgba(255, 255, 255, 0.95);
+}
+
+/* 确保所有卡片内容区域高度一致 */
+.stat-card .flex-grow-1 {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    min-height: 0;
+}
+
+/* 为所有卡片添加统一的间距，保持高度一致 */
+.stat-card .flex-grow-1 > h3 {
+    flex-shrink: 0;
+}
+
+/* 为今日检测卡片调整间距，使其与其他卡片高度一致 */
+.stat-card .stat-detail {
+    flex-shrink: 0;
+    margin-top: 0.25rem;
 }
 
 /* 统计卡片动画 */
@@ -1166,7 +1262,7 @@ $(document).ready(function() {
 // 图表相关代码
 $(document).ready(function() {
     // 阅读过检统计图表
-    console.log('Initializing read check chart...');
+    // console.log('Initializing read check chart...');
     
     const ctx = document.getElementById('readCheckChart');
     if (!ctx) {
@@ -1174,7 +1270,7 @@ $(document).ready(function() {
         return;
     }
     
-    console.log('Canvas found, starting AJAX request...');
+    // console.log('Canvas found, starting AJAX request...');
     
     // 通过AJAX获取图表数据
     $.ajax({
@@ -1185,12 +1281,12 @@ $(document).ready(function() {
         },
         timeout: 10000,
         success: function(response) {
-            console.log('AJAX Success - Chart data response:', response);
+            // console.log('AJAX Success - Chart data response:', response);
             
             let chartData = [];
             if (response && response.code === 200 && response.data) {
                 chartData = response.data;
-                console.log('Using API data:', chartData);
+                // console.log('Using API data:', chartData);
             } else {
                 console.log('API response invalid or no data, response:', response);
             }
@@ -1213,7 +1309,7 @@ $(document).ready(function() {
                 }
             }
             
-            console.log('Final chart data:', chartData);
+            // console.log('Final chart data:', chartData);
             
             // 调用创建图表函数
             createChart(ctx, chartData);
@@ -1246,7 +1342,7 @@ $(document).ready(function() {
     
     // 创建图表的统一函数
     function createChart(ctx, chartData, isError = false) {
-        console.log('Creating chart with data:', chartData);
+        // console.log('Creating chart with data:', chartData);
         
         try {
             const chart = new Chart(ctx, {
@@ -1332,7 +1428,7 @@ $(document).ready(function() {
                     }
                 }
             });
-            console.log('Chart created successfully');
+            // console.log('Chart created successfully');
             return chart;
         } catch (error) {
             console.error('Error creating chart:', error);

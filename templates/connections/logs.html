@@ -17,81 +17,105 @@
         </div>
     </div>
 
-    <!-- 筛选器 -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-gradient-primary text-white">
-            <h5 class="mb-0">
-                <i class="fas fa-filter me-2"></i>筛选条件
-            </h5>
-        </div>
-        <div class="card-body">
-            <form method="get" class="row g-3">
-                <!-- 搜索框 -->
-                <div class="col-md-3">
-                    <label class="form-label">搜索关键词</label>
-                    <input type="text" class="form-control" name="search" value="{{ search }}" 
-                           placeholder="搜索日志消息或连接名称">
+    <!-- 筛选器 - 重新设计 -->
+    <div class="filter-card mb-4">
+        <form method="get" id="filterForm" class="filter-form">
+            <!-- 搜索区域 -->
+            <div class="filter-search-section">
+                <div class="search-wrapper">
+                    <div class="search-icon-wrapper">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <input type="text" 
+                           class="search-input" 
+                           name="search" 
+                           value="{{ search }}" 
+                           placeholder="搜索日志消息或连接名称...">
+                    <div class="search-actions">
+                        <button type="submit" class="btn-search">
+                            <i class="fas fa-search me-1"></i>
+                            <span>搜索</span>
+                        </button>
+                        <a href="{% url 'logs' %}" class="btn-clear">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </div>
                 </div>
-                
-                <!-- 日志类型 -->
-                <div class="col-md-2">
-                    <label class="form-label">日志类型</label>
-                    <select class="form-select" name="type">
-                        <option value="">全部类型</option>
-                        {% for type_code, type_name in log_types %}
-                            <option value="{{ type_code }}" {% if selected_type == type_code %}selected{% endif %}>
-                                {{ type_name }}
-                            </option>
-                        {% endfor %}
-                    </select>
+            </div>
+            
+            <!-- 筛选条件区域 -->
+            <div class="filter-conditions-section">
+                <div class="filter-grid">
+                    <!-- 日志类型 -->
+                    <div class="filter-item">
+                        <div class="filter-icon type-icon">
+                            <i class="fas fa-tag"></i>
+                        </div>
+                        <div class="filter-content">
+                            <label class="filter-label">日志类型</label>
+                            <select class="filter-select" name="type">
+                                <option value="">全部类型</option>
+                                {% for type_code, type_name in log_types %}
+                                    <option value="{{ type_code }}" {% if selected_type == type_code %}selected{% endif %}>
+                                        {{ type_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 连接筛选 -->
+                    <div class="filter-item">
+                        <div class="filter-icon connection-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="filter-content">
+                            <label class="filter-label">连接</label>
+                            <select class="filter-select" name="connection">
+                                <option value="">全部连接</option>
+                                {% for connection in connections %}
+                                    <option value="{{ connection.pk }}" {% if selected_connection == connection.pk|stringformat:"s" %}selected{% endif %}>
+                                        {{ connection.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 状态筛选 -->
+                    <div class="filter-item">
+                        <div class="filter-icon status-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="filter-content">
+                            <label class="filter-label">状态</label>
+                            <select class="filter-select" name="status">
+                                <option value="">全部状态</option>
+                                <option value="success" {% if selected_status == 'success' %}selected{% endif %}>成功</option>
+                                <option value="failed" {% if selected_status == 'failed' %}selected{% endif %}>失败</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 日志源筛选 -->
+                    <div class="filter-item">
+                        <div class="filter-icon source-icon">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <div class="filter-content">
+                            <label class="filter-label">日志源</label>
+                            <select class="filter-select" name="source">
+                                {% for source_code, source_name in log_sources %}
+                                    <option value="{{ source_code }}" {% if selected_source == source_code %}selected{% endif %}>
+                                        {{ source_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                
-                <!-- 连接筛选 -->
-                <div class="col-md-3">
-                    <label class="form-label">连接</label>
-                    <select class="form-select" name="connection">
-                        <option value="">全部连接</option>
-                        {% for connection in connections %}
-                            <option value="{{ connection.pk }}" {% if selected_connection == connection.pk|stringformat:"s" %}selected{% endif %}>
-                                {{ connection.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <!-- 状态筛选 -->
-                <div class="col-md-2">
-                    <label class="form-label">状态</label>
-                    <select class="form-select" name="status">
-                        <option value="">全部状态</option>
-                        <option value="success" {% if selected_status == 'success' %}selected{% endif %}>成功</option>
-                        <option value="failed" {% if selected_status == 'failed' %}selected{% endif %}>失败</option>
-                    </select>
-                </div>
-                
-                <!-- 日志源筛选 -->
-                <div class="col-md-2">
-                    <label class="form-label">日志源</label>
-                    <select class="form-select" name="source">
-                        {% for source_code, source_name in log_sources %}
-                            <option value="{{ source_code }}" {% if selected_source == source_code %}selected{% endif %}>
-                                {{ source_name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <!-- 操作按钮 -->
-                <div class="col-md-1 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary me-2">
-                        <i class="fas fa-search me-1"></i>筛选
-                    </button>
-                    <a href="{% url 'logs' %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-times me-1"></i>清空
-                    </a>
-                </div>
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
 
     <!-- 日志列表 -->
@@ -464,8 +488,276 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
+/* 筛选卡片 - 全新设计 */
+.filter-card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+/* 搜索区域 */
+.filter-search-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.filter-search-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.filter-search-section::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -5%;
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: white;
+    border-radius: 12px;
+    padding: 0.5rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    z-index: 1;
+}
+
+.search-icon-wrapper {
+    padding: 0 1rem;
+    color: #667eea;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+}
+
+.search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 0.75rem 0;
+    font-size: 1rem;
+    color: #2d3748;
+    background: transparent;
+}
+
+.search-input::placeholder {
+    color: #a0aec0;
+}
+
+.search-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.btn-search {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-search:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-clear {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f7fafc;
+    color: #718096;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.btn-clear:hover {
+    background: #edf2f7;
+    color: #2d3748;
+    transform: rotate(90deg);
+}
+
+/* 筛选条件区域 */
+.filter-conditions-section {
+    padding: 1.5rem 2rem;
+    background: #f8f9fa;
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.filter-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: white;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.filter-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    border-color: rgba(102, 126, 234, 0.2);
+}
+
+.filter-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: white;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.type-icon {
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+}
+
+.connection-icon {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+}
+
+.status-icon {
+    background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+}
+
+.source-icon {
+    background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+}
+
+.filter-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.filter-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.filter-select {
+    width: 100%;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.95rem;
+    color: #2d3748;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23667eea' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.875rem center;
+    padding-right: 2.5rem;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
+    .filter-search-section {
+        padding: 1.5rem;
+    }
+    
+    .search-wrapper {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .search-icon-wrapper {
+        display: none;
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+    }
+    
+    .search-actions {
+        width: 100%;
+        padding: 0;
+    }
+    
+    .btn-search {
+        flex: 1;
+        justify-content: center;
+    }
+    
+    .filter-conditions-section {
+        padding: 1rem;
+    }
+    
+    .filter-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .filter-item {
+        padding: 1rem;
+    }
+    
+    .filter-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+    
     .logs-table {
         font-size: 0.875rem;
     }

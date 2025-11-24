@@ -214,71 +214,110 @@
 </div>
 
 <script>
+// 全局变量
 let currentSession = null;
 let statusCheckInterval = null;
 let isStatusCheckStopped = false;
+
+// 获取 CSRF token - 全局函数
+function getCSRFToken() {
+    // 从表单中获取
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfToken) {
+        return csrfToken.value;
+    }
+    // 尝试从 cookie 获取
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return decodeURIComponent(value);
+        }
+    }
+    return '';
+}
 
 // 开始登录
 function startLogin(connectionId, loginType) {
     // 先停止任何现有的状态检查
     stopStatusCheck();
     
-    $('#qrLoginModal').modal('show');
+    // 使用 Bootstrap 5 的方式显示模态框
+    const modalElement = document.getElementById('qrLoginModal');
+    if (modalElement) {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
     
     // 重置状态
-    $('#qrCodeContainer').html(`
-        <div class="spinner-border text-primary mb-3" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <p>正在生成二维码...</p>
-    `);
-    $('#statusMessage').html('<p class="text-muted">请使用微信扫描二维码登录</p>');
+    const qrContainer = document.getElementById('qrCodeContainer');
+    const statusMsg = document.getElementById('statusMessage');
     
-    // 获取二维码
-    $.ajax({
-        url: `/dashboard/wechat-login/${connectionId}/qr/`,
+    if (qrContainer) {
+        qrContainer.innerHTML = `
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p>正在生成二维码...</p>
+        `;
+    }
+    if (statusMsg) {
+        statusMsg.innerHTML = '<p class="text-muted">请使用微信扫描二维码登录</p>';
+    }
+    
+    // 获取二维码 - 使用原生 fetch API
+    fetch(`/dashboard/wechat-login/${connectionId}/qr/`, {
         method: 'POST',
-        data: JSON.stringify({
-            type: loginType
-        }),
-        contentType: 'application/json',
         headers: {
-            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
         },
-        success: function(response) {
-            if (response.code === 200) {
-                currentSession = response.data.session_id;
-                
-                // 显示二维码
-                $('#qrCodeContainer').html(`
-                    <img src="${response.data.qr_image}" class="img-fluid mb-3" style="max-width: 240px;">
+        body: JSON.stringify({
+            type: loginType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.code === 200) {
+            currentSession = data.data.session_id;
+            
+            // 显示二维码
+            if (qrContainer) {
+                qrContainer.innerHTML = `
+                    <img src="${data.data.qr_image}" class="img-fluid mb-3" style="max-width: 240px;">
                     <p class="text-muted">二维码有效期: 100秒</p>
-                `);
-                
-                // 开始检查状态
-                startStatusCheck();
-                
-                // 设置过期时间
-                setTimeout(() => {
-                    if (currentSession) {
-                        $('#statusMessage').html('<p class="text-danger">二维码已过期，请重新获取</p>');
-                        stopStatusCheck();
-                    }
-                }, 100000);
-                
-            } else {
-                $('#qrCodeContainer').html(`
-                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                    <p class="text-danger">${response.msg}</p>
-                `);
+                `;
             }
-        },
-        error: function(xhr) {
-            const response = xhr.responseJSON || {};
-            $('#qrCodeContainer').html(`
+            
+            // 开始检查状态
+            startStatusCheck();
+            
+            // 设置过期时间
+            setTimeout(() => {
+                if (currentSession) {
+                    if (statusMsg) {
+                        statusMsg.innerHTML = '<p class="text-danger">二维码已过期，请重新获取</p>';
+                    }
+                    stopStatusCheck();
+                }
+            }, 100000);
+            
+        } else {
+            if (qrContainer) {
+                qrContainer.innerHTML = `
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <p class="text-danger">${data.msg}</p>
+                `;
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (qrContainer) {
+            qrContainer.innerHTML = `
                 <i class="fas fa-times-circle fa-3x text-danger mb-3"></i>
-                <p class="text-danger">获取二维码失败：${response.msg || '网络错误'}</p>
-            `);
+                <p class="text-danger">获取二维码失败：${error.message || '网络错误'}</p>
+            `;
         }
     });
 }
@@ -299,77 +338,105 @@ function startStatusCheck() {
         
         console.log('执行状态检查，会话ID:', currentSession);
         
-        $.ajax({
-            url: `/dashboard/wechat-login/session/${currentSession}/status/`,
+        // 使用 fetch API
+        fetch(`/dashboard/wechat-login/session/${currentSession}/status/`, {
             method: 'GET',
-            success: function(response) {
-                // 检查是否已经停止状态检查
-                if (isStatusCheckStopped || !currentSession) {
-                    console.log('状态检查已停止，忽略响应');
-                    return;
-                }
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(response => {
+            // 检查是否已经停止状态检查
+            if (isStatusCheckStopped || !currentSession) {
+                console.log('状态检查已停止，忽略响应');
+                return;
+            }
+            
+            if (response.code === 200) {
+                const data = response.data;
+                const statusMsg = document.getElementById('statusMessage');
                 
-                if (response.code === 200) {
-                    const data = response.data;
-                    
-                    if (data.status === 'success') {
-                        $('#statusMessage').html(`
+                if (data.status === 'success') {
+                    if (statusMsg) {
+                        statusMsg.innerHTML = `
                             <div class="alert alert-success">
                                 <i class="fas fa-check-circle me-2"></i>
                                 登录成功！<br>
                                 <small>wxid: ${data.wxid}<br>昵称: ${data.nickname}</small>
                             </div>
-                        `);
-                        stopStatusCheck();
-                        setTimeout(() => {
-                            $('#qrLoginModal').modal('hide');
-                            showMessage('登录成功！', 'success');
-                        }, 2000);
-                        
-                    } else if (data.status === 'scanned') {
-                        $('#statusMessage').html(`
+                        `;
+                    }
+                    stopStatusCheck();
+                    setTimeout(() => {
+                        const modalElement = document.getElementById('qrLoginModal');
+                        if (modalElement) {
+                            const modal = bootstrap.Modal.getInstance(modalElement);
+                            if (modal) {
+                                modal.hide();
+                            }
+                        }
+                        showMessage('登录成功！', 'success');
+                    }, 2000);
+                    
+                } else if (data.status === 'scanned') {
+                    if (statusMsg) {
+                        statusMsg.innerHTML = `
                             <div class="alert alert-info">
                                 <i class="fas fa-mobile-alt me-2"></i>
                                 ${data.message}
                             </div>
-                        `);
-                        
-                    } else if (data.status === 'expired') {
-                        $('#statusMessage').html(`
+                        `;
+                    }
+                    
+                } else if (data.status === 'expired') {
+                    if (statusMsg) {
+                        statusMsg.innerHTML = `
                             <div class="alert alert-warning">
                                 <i class="fas fa-clock me-2"></i>
                                 二维码已过期
                             </div>
-                        `);
-                        stopStatusCheck();
-                        
-                    } else if (data.status === 'failed') {
-                        $('#statusMessage').html(`
+                        `;
+                    }
+                    stopStatusCheck();
+                    
+                } else if (data.status === 'failed') {
+                    if (statusMsg) {
+                        statusMsg.innerHTML = `
                             <div class="alert alert-danger">
                                 <i class="fas fa-times-circle me-2"></i>
                                 ${data.message}
                             </div>
-                        `);
-                        stopStatusCheck();
-                        
-                    } else if (data.status === 'cancelled') {
-                        console.log('检测到会话已取消');
-                        $('#statusMessage').html(`
+                        `;
+                    }
+                    stopStatusCheck();
+                    
+                } else if (data.status === 'cancelled') {
+                    console.log('检测到会话已取消');
+                    if (statusMsg) {
+                        statusMsg.innerHTML = `
                             <div class="alert alert-secondary">
                                 <i class="fas fa-ban me-1"></i>
                                 登录已取消
                             </div>
-                        `);
-                        stopStatusCheck();
-                        setTimeout(() => {
-                            $('#qrLoginModal').modal('hide');
-                        }, 2000);
+                        `;
                     }
+                    stopStatusCheck();
+                    setTimeout(() => {
+                        const modalElement = document.getElementById('qrLoginModal');
+                        if (modalElement) {
+                            const modal = bootstrap.Modal.getInstance(modalElement);
+                            if (modal) {
+                                modal.hide();
+                            }
+                        }
+                    }, 2000);
                 }
-            },
-            error: function() {
-                // 静默处理错误，继续检查
             }
+        })
+        .catch(error => {
+            // 静默处理错误，继续检查
+            console.error('Status check error:', error);
         });
     }, 2000);
 }
@@ -394,31 +461,31 @@ function autoLogin(connectionId, codeId) {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     btn.disabled = true;
     
-    $.ajax({
-        url: `/dashboard/wechat-login/${connectionId}/auto-login/${codeId}/`,
+    fetch(`/dashboard/wechat-login/${connectionId}/auto-login/${codeId}/`, {
         method: 'POST',
         headers: {
-            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
-        },
-        success: function(response) {
-            if (response.code === 200) {
-                showMessage('自动登录成功！', 'success');
-            } else if (response.code === 202) {
-                // 需要扫码登录
-                showMessage('需要扫码登录，正在获取二维码...', 'info');
-                startLogin(connectionId, response.data.device_type);
-            } else {
-                showMessage('自动登录失败：' + response.msg, 'warning');
-            }
-        },
-        error: function(xhr) {
-            const response = xhr.responseJSON || {};
-            showMessage('自动登录失败：' + (response.msg || '网络错误'), 'danger');
-        },
-        complete: function() {
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
+            'X-CSRFToken': getCSRFToken()
         }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.code === 200) {
+            showMessage('自动登录成功！', 'success');
+        } else if (data.code === 202) {
+            // 需要扫码登录
+            showMessage('需要扫码登录，正在获取二维码...', 'info');
+            startLogin(connectionId, data.data.device_type);
+        } else {
+            showMessage('自动登录失败：' + data.msg, 'warning');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('自动登录失败：网络错误', 'danger');
+    })
+    .finally(() => {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
     });
 }
 
@@ -440,36 +507,28 @@ function showMessage(message, type = 'info') {
     `;
     
     // 移除现有的alert
-    $('.alert').remove();
+    const existingAlerts = document.querySelectorAll('.alert');
+    existingAlerts.forEach(alert => alert.remove());
     
     // 添加新的alert到页面顶部
-    $('h2').after(alertHtml);
-    
-    // 3秒后自动消失
-    setTimeout(() => {
-        $('.alert').fadeOut();
-    }, 3000);
+    const h2 = document.querySelector('h2');
+    if (h2 && h2.parentNode) {
+        const alertDiv = document.createElement('div');
+        alertDiv.innerHTML = alertHtml;
+        h2.parentNode.insertBefore(alertDiv.firstElementChild, h2.nextSibling);
+        
+        // 3秒后自动消失
+        setTimeout(() => {
+            const alert = alertDiv.firstElementChild;
+            if (alert) {
+                alert.style.transition = 'opacity 0.5s';
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 500);
+            }
+        }, 3000);
+    }
 }
 
-
-// 模态框关闭时清理
-$('#qrLoginModal').on('hidden.bs.modal', function() {
-    console.log('模态框关闭，当前会话:', currentSession);
-    
-    // 立即停止状态检查
-    stopStatusCheck();
-    
-    // 如果有活跃的会话，取消它
-    if (currentSession) {
-        cancelQRSession(currentSession);
-    }
-});
-
-// 模态框开始关闭时立即停止状态检查
-$('#qrLoginModal').on('hide.bs.modal', function() {
-    console.log('模态框开始关闭，立即停止状态检查');
-    stopStatusCheck();
-});
 
 // 处理取消按钮点击
 function handleCancelClick() {
@@ -483,18 +542,18 @@ function handleCancelClick() {
 // 取消二维码会话
 function cancelQRSession(sessionId) {
     console.log('正在取消会话:', sessionId);
-    $.ajax({
-        url: `/dashboard/wechat-login/session/${sessionId}/cancel/`,
+    fetch(`/dashboard/wechat-login/session/${sessionId}/cancel/`, {
         method: 'POST',
         headers: {
-            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
-        },
-        success: function(response) {
-            console.log('会话已取消:', response.msg);
-        },
-        error: function(xhr) {
-            console.log('取消会话失败:', xhr.responseJSON?.msg || '网络错误');
+            'X-CSRFToken': getCSRFToken()
         }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('会话已取消:', data.msg);
+    })
+    .catch(error => {
+        console.log('取消会话失败:', error.message || '网络错误');
     });
 }
 
@@ -517,67 +576,53 @@ function generateAuthCode(connectionId) {
         return;
     }
     
-    $.ajax({
-        url: `/dashboard/api/connections/${connectionId}/generate-auth-code/`,
+    fetch(`/dashboard/api/connections/${connectionId}/generate-auth-code/`, {
         method: 'POST',
         headers: {
-            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+            'X-CSRFToken': getCSRFToken(),
             'Content-Type': 'application/json'
         },
-        data: JSON.stringify({
+        body: JSON.stringify({
             days: parseInt(days)
-        }),
-        success: function(response) {
-            if (response.code === 200) {
-                const authCodes = response.data.auth_codes;
-                if (authCodes && authCodes.length > 0) {
-                    let message = `🎉 授权码生成成功！\n生成数量: ${authCodes.length}`;
-                    authCodes.forEach((code, index) => {
-                        message += `\n${index + 1}. ${code}`;
-                    });
-                    
-                    // 询问是否添加到系统
-                    if (confirm('是否将生成的授权码添加到系统中？')) {
-                        addAuthCodesToSystem(connectionId, authCodes);
-                    }
-                    
-                    showMessage(message, 'success');
-                } else {
-                    showMessage('授权码生成成功，但未返回授权码信息', 'info');
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.code === 200) {
+            const authCodes = data.data.auth_codes;
+            if (authCodes && authCodes.length > 0) {
+                let message = `🎉 授权码生成成功！\n生成数量: ${authCodes.length}`;
+                authCodes.forEach((code, index) => {
+                    message += `\n${index + 1}. ${code}`;
+                });
+                
+                // 询问是否添加到系统
+                if (confirm('是否将生成的授权码添加到系统中？')) {
+                    addAuthCodesToSystem(connectionId, authCodes);
                 }
+                
+                showMessage(message, 'success');
             } else {
-                showMessage('生成授权码失败：' + response.msg, 'danger');
+                showMessage('授权码生成成功，但未返回授权码信息', 'info');
             }
-        },
-        error: function(xhr) {
-            const response = xhr.responseJSON || {};
-            showMessage('生成授权码失败：' + (response.msg || '网络错误'), 'danger');
-        },
-        complete: function() {
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
+        } else {
+            showMessage('生成授权码失败：' + data.msg, 'danger');
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('生成授权码失败：网络错误', 'danger');
+    })
+    .finally(() => {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
     });
 }
 
 // WeCharPadPro - 登录Pro
 function loginPro(connectionId) {
-    // 检查是否有可用的授权码
-    $.ajax({
-        url: `/dashboard/connections/${connectionId}/`,
-        method: 'GET',
-        success: function(response) {
-            // 这里需要检查连接详情，获取授权码列表
-            // 由于当前页面结构限制，我们直接跳转到连接详情页面
-            window.location.href = `/dashboard/connections/${connectionId}/`;
-        },
-        error: function() {
-            showMessage('无法获取连接信息，请直接前往连接管理页面', 'warning');
-            setTimeout(() => {
-                window.location.href = `/dashboard/connections/`;
-            }, 2000);
-        }
-    });
+    // 直接跳转到连接详情页面
+    window.location.href = `/dashboard/connections/${connectionId}/`;
 }
 
 // 添加授权码到系统
@@ -588,41 +633,78 @@ function addAuthCodesToSystem(connectionId, authCodes) {
     authCodes.forEach((code, index) => {
         const remark = prompt(`请为授权码 ${code.substring(0, 8)}... 输入备注名称：`, `Pro授权码-${index + 1}`);
         if (remark !== null) {
-            $.ajax({
-                url: `/dashboard/api/connections/${connectionId}/auth-codes/`,
+            fetch(`/dashboard/api/connections/${connectionId}/auth-codes/`, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                    'X-CSRFToken': getCSRFToken(),
                     'Content-Type': 'application/json'
                 },
-                data: JSON.stringify({
+                body: JSON.stringify({
                     code: code,
                     remark: remark
-                }),
-                success: function(response) {
-                    addedCount++;
-                    if (addedCount === totalCount) {
-                        showMessage(`✅ 成功添加 ${addedCount} 个授权码到系统`, 'success');
-                        // 刷新授权码自动登录区域
-                        setTimeout(() => {
-                            location.reload();
-                        }, 1500);
-                    }
-                },
-                error: function(xhr) {
-                    const response = xhr.responseJSON || {};
-                    showMessage(`添加授权码 ${code.substring(0, 8)}... 失败：${response.msg || '网络错误'}`, 'warning');
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                addedCount++;
+                if (addedCount === totalCount) {
+                    showMessage(`✅ 成功添加 ${addedCount} 个授权码到系统`, 'success');
+                    // 刷新授权码自动登录区域
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
                 }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage(`添加授权码 ${code.substring(0, 8)}... 失败：网络错误`, 'warning');
             });
         }
     });
 }
 
-// 页面加载完成
-$(document).ready(function() {
-    // 页面初始化完成
-    console.log('微信登录页面加载完成');
-});
+// 页面加载完成 - 确保所有函数在全局可用
+(function() {
+    // 将所有函数暴露到全局作用域
+    window.getCSRFToken = getCSRFToken;
+    window.startLogin = startLogin;
+    window.autoLogin = autoLogin;
+    window.generateAuthCode = generateAuthCode;
+    window.loginPro = loginPro;
+    window.handleCancelClick = handleCancelClick;
+    window.stopStatusCheck = stopStatusCheck;
+    window.startStatusCheck = startStatusCheck;
+    window.cancelQRSession = cancelQRSession;
+    window.showMessage = showMessage;
+    window.addAuthCodesToSystem = addAuthCodesToSystem;
+    
+    // DOM 加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        // console.log('微信登录页面加载完成');
+        
+        // 模态框事件监听
+        const modalElement = document.getElementById('qrLoginModal');
+        if (modalElement) {
+            // Bootstrap 5 事件监听
+            modalElement.addEventListener('hidden.bs.modal', function() {
+                //  console.log('模态框关闭，当前会话:', currentSession);
+                
+                // 立即停止状态检查
+                stopStatusCheck();
+                
+                // 如果有活跃的会话，取消它
+                if (currentSession) {
+                    cancelQRSession(currentSession);
+                }
+            });
+            
+            modalElement.addEventListener('hide.bs.modal', function() {
+                console.log('模态框开始关闭，立即停止状态检查');
+                stopStatusCheck();
+            });
+        }
+    });
+})();
 </script>
 
 <style>
