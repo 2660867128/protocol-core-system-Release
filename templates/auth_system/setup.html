@@ -136,16 +136,22 @@
 <body>
     <div class="auth-container">
         <div class="auth-header">
-            <h1><i class="fas fa-shield-alt text-primary"></i> API认证</h1>
-            <p>请输入您的API密钥以继续使用系统</p>
+            <h1><i class="fas fa-shield-alt text-primary"></i> 卡密认证</h1>
+            <p>请输入您的卡密以继续使用系统</p>
         </div>
         
         <div id="alertContainer"></div>
         
+        <!-- 设备ID显示（可选） -->
+        <div class="device-info mb-3" style="font-size: 0.85rem; color: #888; text-align: center;">
+            <i class="fas fa-desktop me-1"></i>设备标识: <span id="deviceIdDisplay">加载中...</span>
+        </div>
+        
         <form id="authForm">
+            <input type="hidden" id="deviceId" name="device_id">
             <div class="form-floating">
-                <input type="password" class="form-control" id="apiKey" placeholder="请输入API密钥" required>
-                <label for="apiKey"><i class="fas fa-key me-2"></i>API密钥</label>
+                <input type="password" class="form-control" id="cardKey" placeholder="请输入卡密" required>
+                <label for="cardKey"><i class="fas fa-key me-2"></i>卡密</label>
             </div>
             
             <button type="submit" class="btn btn-auth" id="submitBtn">
@@ -175,8 +181,87 @@
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('authForm');
             const submitBtn = document.getElementById('submitBtn');
-            const apiKeyInput = document.getElementById('apiKey');
+            const cardKeyInput = document.getElementById('cardKey');
+            const deviceIdInput = document.getElementById('deviceId');
+            const deviceIdDisplay = document.getElementById('deviceIdDisplay');
             const alertContainer = document.getElementById('alertContainer');
+            
+            /**
+             * 生成设备指纹ID
+             * 使用 Canvas + WebGL + navigator 信息生成唯一标识
+             */
+            function generateDeviceId() {
+                const components = [];
+                
+                // 1. Canvas 指纹
+                try {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = 200;
+                    canvas.height = 50;
+                    
+                    ctx.textBaseline = 'top';
+                    ctx.font = '14px Arial';
+                    ctx.fillStyle = '#f60';
+                    ctx.fillRect(125, 1, 62, 20);
+                    ctx.fillStyle = '#069';
+                    ctx.fillText('DeviceFingerprint', 2, 15);
+                    ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+                    ctx.fillText('DeviceFingerprint', 4, 17);
+                    
+                    const canvasData = canvas.toDataURL();
+                    components.push('CV:' + hashString(canvasData).substring(0, 16));
+                } catch (e) {
+                    components.push('CV:error');
+                }
+                
+                // 2. WebGL 信息
+                try {
+                    const canvas = document.createElement('canvas');
+                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    if (gl) {
+                        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                        if (debugInfo) {
+                            const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                            components.push('GL:' + hashString(renderer).substring(0, 16));
+                        }
+                    }
+                } catch (e) {
+                    components.push('GL:error');
+                }
+                
+                // 3. 浏览器信息
+                components.push('UA:' + hashString(navigator.userAgent).substring(0, 8));
+                components.push('LG:' + (navigator.language || 'unknown'));
+                components.push('PL:' + navigator.platform);
+                components.push('SC:' + screen.width + 'x' + screen.height);
+                components.push('TZ:' + Intl.DateTimeFormat().resolvedOptions().timeZone);
+                
+                // 生成最终设备ID
+                const deviceString = components.sort().join('|');
+                const deviceHash = hashString(deviceString).toUpperCase();
+                return 'WEB-' + deviceHash.substring(0, 32);
+            }
+            
+            /**
+             * 简单的字符串哈希函数
+             */
+            function hashString(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                // 转换为十六进制并确保为正数
+                return Math.abs(hash).toString(16).padStart(8, '0');
+            }
+            
+            // 初始化设备ID
+            const deviceId = generateDeviceId();
+            deviceIdInput.value = deviceId;
+            deviceIdDisplay.textContent = deviceId.substring(0, 20) + '...';
+            deviceIdDisplay.title = deviceId;  // 完整ID显示在tooltip
             
             // 显示消息
             function showMessage(message, type = 'info') {
@@ -198,11 +283,11 @@
                 if (loading) {
                     submitBtn.classList.add('loading');
                     submitBtn.disabled = true;
-                    apiKeyInput.disabled = true;
+                    cardKeyInput.disabled = true;
                 } else {
                     submitBtn.classList.remove('loading');
                     submitBtn.disabled = false;
-                    apiKeyInput.disabled = false;
+                    cardKeyInput.disabled = false;
                 }
             }
             
@@ -210,9 +295,9 @@
             form.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
-                const apiKey = apiKeyInput.value.trim();
-                if (!apiKey) {
-                    showMessage('请输入API密钥', 'error');
+                const cardKey = cardKeyInput.value.trim();
+                if (!cardKey) {
+                    showMessage('请输入卡密', 'error');
                     return;
                 }
                 
@@ -225,7 +310,10 @@
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ api_key: apiKey })
+                        body: JSON.stringify({ 
+                            card_key: cardKey,
+                            device_id: deviceIdInput.value
+                        })
                     });
                     
                     const result = await response.json();
@@ -247,10 +335,10 @@
             });
             
             // 自动聚焦到输入框
-            apiKeyInput.focus();
+            cardKeyInput.focus();
             
             // 回车键提交
-            apiKeyInput.addEventListener('keypress', function(e) {
+            cardKeyInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     form.dispatchEvent(new Event('submit'));
                 }
